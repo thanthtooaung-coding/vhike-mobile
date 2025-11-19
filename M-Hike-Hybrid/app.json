@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "VHike",
+    "slug": "m-hike-hybrid",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vinn.vhike",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to show hikes on the map",
+        "NSLocationAlwaysUsageDescription": "We need your location to show hikes on the map",
+        "NSCameraUsageDescription": "We need camera access to take photos for observations",
+        "NSPhotoLibraryUsageDescription": "We need photo library access to select photos for observations"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.vinn.vhike",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB2d5RFZlG6ZQzb4TChAPJ_8rmVd473VsQ"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "We need your location to show hikes on the map."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "We need photo library access to select photos for observations."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
+  }
+}
