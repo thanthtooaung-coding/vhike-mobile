@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "VHike",
+    "name": "M-Hike",
     "slug": "m-hike-hybrid",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,6 +22,11 @@
         "NSLocationAlwaysUsageDescription": "We need your location to show hikes on the map",
         "NSCameraUsageDescription": "We need camera access to take photos for observations",
         "NSPhotoLibraryUsageDescription": "We need photo library access to select photos for observations"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB2d5RFZlG6ZQzb4TChAPJ_8rmVd473VsQ"
+        }
       }
     },
     "android": {

@@ -13,6 +13,7 @@ import {
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {MaterialIcons} from '@expo/vector-icons';
 import {RootStackParamList, AddHikeFormState} from '../types';
@@ -29,6 +30,7 @@ const AddHikeScreen: React.FC = () => {
   const [formState, setFormState] = useState<AddHikeFormState>(addHikeFormState);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const hikeIdToEdit = route.params?.hikeId;
 
@@ -51,7 +53,6 @@ const AddHikeScreen: React.FC = () => {
   }, [hikeIdToEdit]);
 
   useEffect(() => {
-    // Handle location picked from map
     const pickedLocation = route.params?.pickedLocation;
     if (pickedLocation) {
       console.log('Location picked from map:', pickedLocation);
@@ -61,7 +62,6 @@ const AddHikeScreen: React.FC = () => {
         latitude: pickedLocation.latitude,
         longitude: pickedLocation.longitude,
       }));
-      // Clear the pickedLocation from params to avoid re-triggering
       navigation.setParams({pickedLocation: undefined});
     }
   }, [route.params?.pickedLocation, navigation]);
@@ -129,7 +129,13 @@ const AddHikeScreen: React.FC = () => {
         navigation.goBack();
       } else {
         const savedId = await addHike(hikeData);
-        navigation.navigate('HikeConfirmation', {hikeId: savedId});
+        navigation.reset({
+          index: 1,
+          routes: [
+            {name: 'HikeList'},
+            {name: 'HikeConfirmation', params: {hikeId: savedId}},
+          ],
+        });
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to save hike. Please try again.');
@@ -164,7 +170,7 @@ const AddHikeScreen: React.FC = () => {
             onPress={() => {
               navigation.navigate('MapPicker');
             }}>
-            <MaterialIcons name="map" size={24} color="#00897B" />
+            <MaterialIcons name="map" size={24} color="#00BFA5" />
           </TouchableOpacity>
         </View>
       </View>
@@ -179,7 +185,7 @@ const AddHikeScreen: React.FC = () => {
               ? formState.hikeDate.toLocaleDateString()
               : 'Select date'}
           </Text>
-          <MaterialIcons name="calendar-today" size={20} color="#00897B" />
+          <MaterialIcons name="calendar-today" size={20} color="#00BFA5" />
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -289,7 +295,7 @@ const AddHikeScreen: React.FC = () => {
             onValueChange={value =>
               setFormState({...formState, parkingAvailable: value})
             }
-            trackColor={{false: '#767577', true: '#00897B'}}
+            trackColor={{false: '#767577', true: '#00BFA5'}}
             thumbColor={formState.parkingAvailable ? '#fff' : '#f4f3f4'}
           />
         </View>
@@ -308,13 +314,19 @@ const AddHikeScreen: React.FC = () => {
       </View>
 
       <TouchableOpacity
-        style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+        style={[
+          styles.saveButton,
+          loading && styles.saveButtonDisabled,
+          {marginBottom: Math.max(insets.bottom, 20)},
+        ]}
         onPress={handleSave}
         disabled={loading}>
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveButtonText}>Save Hike</Text>
+          <Text style={styles.saveButtonText}>
+            {route.params?.hikeId ? 'Update Hike' : 'Save Hike'}
+          </Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -387,8 +399,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   pickerOptionSelected: {
-    backgroundColor: '#00897B',
-    borderColor: '#00897B',
+    backgroundColor: '#00BFA5',
+    borderColor: '#00BFA5',
   },
   pickerOptionText: {
     fontSize: 14,
@@ -408,7 +420,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#00897B',
+    backgroundColor: '#00BFA5',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',

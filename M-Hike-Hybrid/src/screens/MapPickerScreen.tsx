@@ -20,21 +20,24 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MapPickerScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  
   const [region, setRegion] = useState({
     latitude: 37.78825,
     longitude: -122.4324,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+
   const [selectedLocation, setSelectedLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
+
+  const [addressText, setAddressText] = useState<string>('');
+  
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize Google Maps API key for geocoding
-    // Try to get from app.json config
     const googleMapsApiKey = 
       Constants.expoConfig?.android?.config?.googleMaps?.apiKey ||
       Constants.expoConfig?.ios?.config?.googleMapsApiKey;
@@ -42,17 +45,29 @@ const MapPickerScreen: React.FC = () => {
     if (googleMapsApiKey) {
       GeocodingService.setApiKey(googleMapsApiKey);
     }
+    
     getCurrentLocation();
   }, []);
+
+  const updateLocationWithAddress = async (latitude: number, longitude: number) => {
+    setSelectedLocation({latitude, longitude});
+    
+    setAddressText('Fetching address...');
+
+    try {
+      const result = await GeocodingService.reverseGeocode(latitude, longitude);
+      
+      setAddressText(result.formattedAddress);
+    } catch (error) {
+      setAddressText(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+    }
+  };
 
   const getCurrentLocation = async () => {
     try {
       const {status} = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is required. Please enable it in settings.'
-        );
+        Alert.alert('Permission Denied', 'Location permission is required.');
         setLoading(false);
         return;
       }
@@ -60,30 +75,30 @@ const MapPickerScreen: React.FC = () => {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
+      
       const {latitude, longitude} = location.coords;
-      const newRegion = {
+      
+      setRegion({
         latitude,
         longitude,
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
-      };
-      setRegion(newRegion);
-      // Set initial selected location to current location
-      setSelectedLocation({latitude, longitude});
+      });
+
+      await updateLocationWithAddress(latitude, longitude);
+      
       setLoading(false);
     } catch (error) {
       console.error('Location error:', error);
       setLoading(false);
-      Alert.alert('Error', 'Could not get your location. Please select on the map.');
+      Alert.alert('Error', 'Could not get your location.');
     }
   };
 
   const handleMapPress = (event: any) => {
     const coordinate = event.nativeEvent?.coordinate;
     if (coordinate) {
-      const {latitude, longitude} = coordinate;
-      setSelectedLocation({latitude, longitude});
-      console.log('Location selected:', latitude, longitude);
+      updateLocationWithAddress(coordinate.latitude, coordinate.longitude);
     }
   };
 
@@ -93,34 +108,13 @@ const MapPickerScreen: React.FC = () => {
       return;
     }
 
-    try {
-      // Use GeocodingService to get formatted address
-      // This tries expo-location first, then Google Maps API as fallback
-      // Similar to Kotlin's Geocoder.getAddressLine(0)
-      const result = await GeocodingService.reverseGeocode(
-        selectedLocation.latitude,
-        selectedLocation.longitude
-      );
-
-      // Pass location data back through navigation
-      navigation.navigate('AddHike', {
-        pickedLocation: {
-          latitude: selectedLocation.latitude,
-          longitude: selectedLocation.longitude,
-          location: result.formattedAddress,
-        },
-      });
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      // Fallback to coordinates if everything fails
-      navigation.navigate('AddHike', {
-        pickedLocation: {
-          latitude: selectedLocation.latitude,
-          longitude: selectedLocation.longitude,
-          location: `${selectedLocation.latitude.toFixed(6)}, ${selectedLocation.longitude.toFixed(6)}`,
-        },
-      });
-    }
+    navigation.navigate('AddHike', {
+      pickedLocation: {
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+        location: addressText,
+      },
+    });
   };
 
   if (loading) {
@@ -151,11 +145,22 @@ const MapPickerScreen: React.FC = () => {
             draggable
             onDragEnd={(e) => {
               const {latitude, longitude} = e.nativeEvent.coordinate;
-              setSelectedLocation({latitude, longitude});
+              updateLocationWithAddress(latitude, longitude);
             }}
           />
         )}
       </MapView>
+
+      {selectedLocation && (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoTextLabel}>Selected Location:</Text>
+          <Text style={styles.infoText}>
+            {addressText} 
+          </Text>
+          <Text style={styles.infoHint}>Tap map or drag marker to change</Text>
+        </View>
+      )}
+
       <View style={styles.controls}>
         <TouchableOpacity
           style={styles.button}
@@ -172,14 +177,6 @@ const MapPickerScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
-      {selectedLocation && (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            Selected: {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
-          </Text>
-          <Text style={styles.infoHint}>Tap anywhere on map or drag marker to change</Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -247,25 +244,31 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    padding: 12,
-    borderRadius: 8,
-    elevation: 4,
+    padding: 15,
+    borderRadius: 12,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    zIndex: 1,
+  },
+  infoTextLabel: {
+    fontSize: 10,
+    color: '#666',
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   infoText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#000',
-    fontWeight: '600',
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   infoHint: {
     fontSize: 10,
-    color: '#666',
+    color: '#00897B',
   },
 });
 
 export default MapPickerScreen;
-

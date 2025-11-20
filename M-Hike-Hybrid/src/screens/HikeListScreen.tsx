@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {MaterialIcons} from '@expo/vector-icons';
 import {RootStackParamList, Hike} from '../types';
 import {useAppContext} from '../context/AppContext';
+import {useAuth} from '../context/AuthContext';
 import {format} from 'date-fns';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -20,8 +22,11 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const HikeListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const {hikes, loadHikes, deleteHike} = useAppContext();
+  const {logout} = useAuth();
   const [loading, setLoading] = useState(true);
   const [hikeToDelete, setHikeToDelete] = useState<Hike | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const loadData = async () => {
@@ -50,46 +55,71 @@ const HikeListScreen: React.FC = () => {
   };
 
   const renderHikeItem = ({item}: {item: Hike}) => (
-    <TouchableOpacity
-      style={styles.hikeCard}
+    <HikeListItem
+      hike={item}
       onPress={() => navigation.navigate('HikeDetail', {hikeId: item.id})}
-      activeOpacity={0.7}>
-      <View style={styles.hikeContent}>
-        <View style={styles.iconContainer}>
-          <MaterialIcons name="landscape" size={32} color="#00897B" />
-        </View>
-        <View style={styles.hikeInfo}>
-          <Text style={styles.hikeName}>{item.hikeName}</Text>
-          <Text style={styles.hikeLocation}>{item.location}</Text>
-          <Text style={styles.hikeMeta}>
-            {format(item.hikeDate, 'MMM dd, yyyy')} • {item.hikeLength} km
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => handleDelete(item)}
-          style={styles.moreButton}>
-          <MaterialIcons name="more-vert" size={24} color="#666" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+      onEdit={() => navigation.navigate('AddHike', {hikeId: item.id})}
+      onDelete={() => handleDelete(item)}
+    />
   );
 
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#00897B" />
+        <ActivityIndicator size="large" color="#00BFA5" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('SearchHikes')}
-          style={styles.searchButton}>
-                    <MaterialIcons name="search" size={24} color="#000" />
-        </TouchableOpacity>
+      <View style={[styles.header, {paddingTop: Math.max(insets.top, 16)}]}>
+        <Text style={styles.headerTitle}>My Hikes</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SearchHikes')}
+            style={styles.searchButton}>
+            <MaterialIcons name="search" size={24} color="#000" />
+          </TouchableOpacity>
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              onPress={() => setShowMenu(!showMenu)}
+              style={styles.menuButton}>
+              <MaterialIcons name="more-vert" size={24} color="#000" />
+            </TouchableOpacity>
+            {showMenu && (
+              <View style={styles.menu}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowMenu(false);
+                    navigation.navigate('Settings');
+                  }}>
+                  <MaterialIcons name="settings" size={20} color="#000" />
+                  <Text style={styles.menuItemText}>Settings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowMenu(false);
+                    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                      {text: 'Cancel', style: 'cancel'},
+                      {
+                        text: 'Log Out',
+                        style: 'destructive',
+                        onPress: async () => {
+                          await logout();
+                        },
+                      },
+                    ]);
+                  }}>
+                  <MaterialIcons name="exit-to-app" size={20} color="#000" />
+                  <Text style={styles.menuItemText}>Log Out</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
       </View>
       {hikes.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -106,7 +136,7 @@ const HikeListScreen: React.FC = () => {
         />
       )}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, {bottom: Math.max(insets.bottom, 16)}]}
         onPress={() => navigation.navigate('AddHike')}
         activeOpacity={0.8}>
         <MaterialIcons name="add" size={28} color="#fff" />
@@ -127,12 +157,23 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
     backgroundColor: '#fff',
   },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   searchButton: {
     padding: 8,
+    marginRight: 8,
   },
   listContent: {
     padding: 16,
@@ -152,7 +193,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 137, 123, 0.1)',
+    backgroundColor: 'rgba(0, 191, 165, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -191,11 +232,10 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    bottom: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#00897B',
+    backgroundColor: '#00BFA5',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -204,7 +244,120 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  menuContainer: {
+    position: 'relative',
+  },
+  menuButton: {
+    padding: 8,
+  },
+  menu: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    minWidth: 150,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  menuItemTextDanger: {
+    color: '#F44336',
+  },
+  moreButtonContainer: {
+    position: 'relative',
+  },
+  itemMenu: {
+    position: 'absolute',
+    top: 32,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    minWidth: 120,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+  },
 });
+
+const HikeListItem: React.FC<{
+  hike: Hike;
+  onPress: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}> = ({hike, onPress, onEdit, onDelete}) => {
+  const [showItemMenu, setShowItemMenu] = useState(false);
+
+  return (
+    <TouchableOpacity
+      style={styles.hikeCard}
+      onPress={onPress}
+      activeOpacity={0.7}>
+      <View style={styles.hikeContent}>
+        <View style={styles.iconContainer}>
+          <MaterialIcons name="landscape" size={32} color="#00BFA5" />
+        </View>
+        <View style={styles.hikeInfo}>
+          <Text style={styles.hikeName}>{hike.hikeName}</Text>
+          <Text style={styles.hikeLocation}>{hike.location}</Text>
+          <Text style={styles.hikeMeta}>
+            {format(hike.hikeDate, 'MMM dd, yyyy')} • {hike.hikeLength} km
+          </Text>
+        </View>
+        <View style={styles.moreButtonContainer}>
+          <TouchableOpacity
+            onPress={() => setShowItemMenu(!showItemMenu)}
+            style={styles.moreButton}>
+            <MaterialIcons name="more-vert" size={24} color="#666" />
+          </TouchableOpacity>
+          {showItemMenu && (
+            <View style={styles.itemMenu}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowItemMenu(false);
+                  onEdit();
+                }}>
+                <MaterialIcons name="edit" size={20} color="#000" />
+                <Text style={styles.menuItemText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowItemMenu(false);
+                  onDelete();
+                }}>
+                <MaterialIcons name="delete" size={20} color="#F44336" />
+                <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default HikeListScreen;
 

@@ -2,11 +2,12 @@ import React, {createContext, useContext, useState, useEffect, ReactNode} from '
 import {database} from '../database/database';
 import {Hike, Observation, AddHikeFormState, AddObservationFormState, SearchFilters} from '../types';
 import {GitHubService} from '../services/GitHubService';
+import {useAuth} from './AuthContext';
 
 interface AppContextType {
   hikes: Hike[];
   loadHikes: () => Promise<void>;
-  addHike: (hike: Omit<Hike, 'id'>) => Promise<number>;
+  addHike: (hike: Omit<Hike, 'id' | 'userId'>) => Promise<number>;
   updateHike: (hike: Hike) => Promise<void>;
   deleteHike: (hike: Hike) => Promise<void>;
   getHikeById: (id: number) => Promise<Hike | null>;
@@ -17,6 +18,7 @@ interface AppContextType {
   updateObservation: (observation: Observation) => Promise<void>;
   deleteObservation: (observation: Observation) => Promise<void>;
   uploadPhoto: (uri: string, fileName: string) => Promise<string | null>;
+  deleteAllHikes: () => Promise<void>;
   addHikeFormState: AddHikeFormState;
   setAddHikeFormState: (state: AddHikeFormState) => void;
   addObservationFormState: AddObservationFormState;
@@ -40,6 +42,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({children}) => {
+  const {currentUser} = useAuth();
   const [hikes, setHikes] = useState<Hike[]>([]);
   const [addHikeFormState, setAddHikeFormState] = useState<AddHikeFormState>({
     hikeName: '',
@@ -63,14 +66,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({children}) => {
   useEffect(() => {
     const initDatabase = async () => {
       await database.init();
-      await loadHikes();
       
-      // Initialize GitHub service from config (you can load from AsyncStorage or config file)
-      // For now, we'll initialize with empty values - user should configure these
-      const token = ''; // Load from AsyncStorage or config
-      const owner = ''; // Load from AsyncStorage or config
-      const repo = ''; // Load from AsyncStorage or config
-      const folder = ''; // Load from AsyncStorage or config
+      const token = '';
+      const owner = '';
+      const repo = '';
+      const folder = '';
       
       if (token && owner && repo && folder) {
         setGitHubService(new GitHubService(token, owner, repo, folder));
@@ -79,13 +79,23 @@ export const AppProvider: React.FC<AppProviderProps> = ({children}) => {
     initDatabase();
   }, []);
 
+  useEffect(() => {
+    if (currentUser) {
+      loadHikes();
+    } else {
+      setHikes([]);
+    }
+  }, [currentUser]);
+
   const loadHikes = async () => {
-    const allHikes = await database.getAllHikes();
+    if (!currentUser) return;
+    const allHikes = await database.getAllHikes(currentUser.id);
     setHikes(allHikes);
   };
 
-  const addHike = async (hike: Omit<Hike, 'id'>): Promise<number> => {
-    const id = await database.insertHike(hike);
+  const addHike = async (hike: Omit<Hike, 'id' | 'userId'>): Promise<number> => {
+    if (!currentUser) throw new Error('User not logged in');
+    const id = await database.insertHike({...hike, userId: currentUser.id});
     await loadHikes();
     return id;
   };
@@ -105,13 +115,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({children}) => {
   };
 
   const searchHikes = async (filters: SearchFilters): Promise<Hike[]> => {
+    if (!currentUser) return [];
     return await database.searchHikes(
+      currentUser.id,
       filters.name,
       filters.location,
       filters.selectedDate,
       filters.lengthMin,
       filters.lengthMax
     );
+  };
+
+  const deleteAllHikes = async (): Promise<void> => {
+    if (!currentUser) return;
+    await database.deleteAllHikesForUser(currentUser.id);
+    await loadHikes();
   };
 
   const getObservationsForHike = async (hikeId: number): Promise<Observation[]> => {

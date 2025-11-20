@@ -1,5 +1,13 @@
+export interface User {
+  id: number;
+  fullName: string;
+  email: string;
+  passwordHash: string;
+}
+
 export interface Hike {
   id: number;
+  userId: number;
   hikeName: string;
   location: string;
   hikeDate: Date;
@@ -64,6 +72,8 @@ export interface AddObservationFormState {
 }
 
 export type RootStackParamList = {
+  Login: undefined;
+  Signup: undefined;
   HikeList: undefined;
   AddHike: { hikeId?: number; pickedLocation?: { latitude: number; longitude: number; location: string } } | undefined;
   SearchHikes: undefined;
@@ -72,5 +82,10 @@ export type RootStackParamList = {
   HikeConfirmation: { hikeId: number };
   AddObservation: { hikeId: number; observationId?: number };
   ObservationDetail: { observationId: number };
+  Settings: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
 };
 

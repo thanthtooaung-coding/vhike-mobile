@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import {Hike, Observation} from '../types';
+import {Hike, Observation, User} from '../types';
 
 const database_name = 'm_hike_database.db';
 
@@ -7,6 +7,9 @@ export class Database {
   private db: SQLite.SQLiteDatabase | null = null;
 
   async init(): Promise<void> {
+    if (this.db) {
+      return;
+    }
     try {
       this.db = await SQLite.openDatabaseAsync(database_name);
       await this.createTables();
@@ -19,9 +22,25 @@ export class Database {
   private async createTables(): Promise<void> {
     if (!this.db) return;
 
-    const createHikeTable = `
-      CREATE TABLE IF NOT EXISTS hike_registry (
+    const dropTables = `
+      DROP TABLE IF EXISTS observation_log;
+      DROP TABLE IF EXISTS hike_registry;
+      DROP TABLE IF EXISTS users;
+    `;
+
+    const createUserTable = `
+      CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullName TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        passwordHash TEXT NOT NULL
+      );
+    `;
+
+    const createHikeTable = `
+      CREATE TABLE hike_registry (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
         hikeName TEXT NOT NULL,
         location TEXT NOT NULL,
         hikeDate INTEGER NOT NULL,
@@ -33,12 +52,21 @@ export class Database {
         latitude REAL,
         longitude REAL,
         duration TEXT NOT NULL,
-        elevation REAL
+        elevation REAL,
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       );
     `;
 
+    const createUserIndex = `
+      CREATE INDEX idx_users_email ON users(email);
+    `;
+
+    const createHikeUserIndex = `
+      CREATE INDEX idx_hike_userId ON hike_registry(userId);
+    `;
+
     const createObservationTable = `
-      CREATE TABLE IF NOT EXISTS observation_log (
+      CREATE TABLE observation_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         hikeId INTEGER NOT NULL,
         observationText TEXT NOT NULL,
@@ -52,19 +80,76 @@ export class Database {
     `;
 
     const createIndex = `
-      CREATE INDEX IF NOT EXISTS idx_observation_hikeId ON observation_log(hikeId);
+      CREATE INDEX idx_observation_hikeId ON observation_log(hikeId);
     `;
 
+    await this.db.execAsync(dropTables);
+    await this.db.execAsync(createUserTable);
     await this.db.execAsync(createHikeTable);
     await this.db.execAsync(createObservationTable);
+    await this.db.execAsync(createUserIndex);
+    await this.db.execAsync(createHikeUserIndex);
     await this.db.execAsync(createIndex);
   }
 
-  // Hike operations
-  async getAllHikes(): Promise<Hike[]> {
+  async getUserByEmail(email: string): Promise<User | null> {
+    if (!this.db) return null;
+    const results = await this.db.getAllAsync<User>(
+      'SELECT * FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+    return results.length > 0 ? results[0] : null;
+  }
+
+  async getUserById(userId: number): Promise<User | null> {
+    if (!this.db) return null;
+    const results = await this.db.getAllAsync<User>(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
+    return results.length > 0 ? results[0] : null;
+  }
+
+  async insertUser(user: Omit<User, 'id'>): Promise<number> {
+    if (!this.db) throw new Error('Database not initialized');
+    const result = await this.db.runAsync(
+      'INSERT INTO users (fullName, email, passwordHash) VALUES (?, ?, ?)',
+      [user.fullName, user.email, user.passwordHash]
+    );
+    return result.lastInsertRowId;
+  }
+
+  async updateUser(user: User): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync(
+      'UPDATE users SET fullName = ?, email = ? WHERE id = ?',
+      [user.fullName, user.email, user.id]
+    );
+  }
+
+  async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync(
+      'UPDATE users SET passwordHash = ? WHERE id = ?',
+      [passwordHash, userId]
+    );
+  }
+
+  async deleteAllHikesForUser(userId: number): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM hike_registry WHERE userId = ?', [userId]);
+  }
+
+  async deleteAllHikes(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync('DELETE FROM hike_registry');
+  }
+
+  async getAllHikes(userId: number): Promise<Hike[]> {
     if (!this.db) return [];
     const results = await this.db.getAllAsync<Hike>(
-      'SELECT * FROM hike_registry ORDER BY hikeDate DESC'
+      'SELECT * FROM hike_registry WHERE userId = ? ORDER BY hikeDate DESC',
+      [userId]
     );
     return this.mapHikes(results);
   }
@@ -83,9 +168,10 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
     const result = await this.db.runAsync(
       `INSERT INTO hike_registry 
-       (hikeName, location, hikeDate, parkingAvailable, hikeLength, difficultyLevel, trailType, description, latitude, longitude, duration, elevation)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (userId, hikeName, location, hikeDate, parkingAvailable, hikeLength, difficultyLevel, trailType, description, latitude, longitude, duration, elevation)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        hike.userId,
         hike.hikeName,
         hike.location,
         hike.hikeDate.getTime(),
@@ -107,11 +193,12 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
     await this.db.runAsync(
       `UPDATE hike_registry 
-       SET hikeName = ?, location = ?, hikeDate = ?, parkingAvailable = ?, hikeLength = ?, 
+       SET userId = ?, hikeName = ?, location = ?, hikeDate = ?, parkingAvailable = ?, hikeLength = ?, 
            difficultyLevel = ?, trailType = ?, description = ?, latitude = ?, longitude = ?, 
            duration = ?, elevation = ?
        WHERE id = ?`,
       [
+        hike.userId,
         hike.hikeName,
         hike.location,
         hike.hikeDate.getTime(),
@@ -135,6 +222,7 @@ export class Database {
   }
 
   async searchHikes(
+    userId: number,
     name?: string,
     location?: string,
     date?: Date,
@@ -142,8 +230,8 @@ export class Database {
     lengthMax?: number
   ): Promise<Hike[]> {
     if (!this.db) return [];
-    let query = 'SELECT * FROM hike_registry WHERE 1=1';
-    const params: any[] = [];
+    let query = 'SELECT * FROM hike_registry WHERE userId = ?';
+    const params: any[] = [userId];
 
     if (name) {
       query += ' AND hikeName LIKE ?';
@@ -172,7 +260,6 @@ export class Database {
     return this.mapHikes(results);
   }
 
-  // Observation operations
   async getObservationsForHike(hikeId: number): Promise<Observation[]> {
     if (!this.db) return [];
     const results = await this.db.getAllAsync<Observation>(
@@ -243,6 +330,7 @@ export class Database {
   private mapHikes(results: any[]): Hike[] {
     return results.map(row => ({
       id: row.id,
+      userId: row.userId,
       hikeName: row.hikeName,
       location: row.location,
       hikeDate: new Date(row.hikeDate),
