@@ -261,7 +261,6 @@ class HikeViewModel @Inject constructor(
         _savedHikeId.value = null
     }
 
-    // --- Search Functions ---
     fun onSearchNameChanged(name: String) {
         _searchFilterState.value = _searchFilterState.value.copy(name = name)
     }
@@ -275,9 +274,36 @@ class HikeViewModel @Inject constructor(
         _searchFilterState.value = _searchFilterState.value.copy(lengthRange = range)
     }
 
+    // NEW Search Setters
+    fun onSearchDifficultyChanged(value: String) {
+        _searchFilterState.value = _searchFilterState.value.copy(difficulty = value)
+    }
+    fun onSearchTrailTypeChanged(value: String) {
+        _searchFilterState.value = _searchFilterState.value.copy(trailType = value)
+    }
+    fun onSearchParkingChanged(value: String) {
+        _searchFilterState.value = _searchFilterState.value.copy(parking = value)
+    }
+    fun onSearchDescriptionChanged(value: String) {
+        _searchFilterState.value = _searchFilterState.value.copy(description = value)
+    }
+    fun onSearchDurationChanged(value: String) {
+        _searchFilterState.value = _searchFilterState.value.copy(duration = value)
+    }
+    fun onSearchElevationChanged(value: String) {
+        _searchFilterState.value = _searchFilterState.value.copy(elevation = value)
+    }
+
     fun executeSearch() {
         val filters = _searchFilterState.value
         val userId = userSession.currentUserId ?: return
+
+        val parkingBool = when(filters.parking) {
+            "Yes" -> true
+            "No" -> false
+            else -> null
+        }
+
         viewModelScope.launch {
             hikeRepository.performSearch(
                 userId = userId,
@@ -285,7 +311,13 @@ class HikeViewModel @Inject constructor(
                 location = filters.location,
                 date = filters.selectedDate,
                 lengthMin = filters.lengthRange?.start,
-                lengthMax = filters.lengthRange?.endInclusive
+                lengthMax = filters.lengthRange?.endInclusive,
+                difficulty = filters.difficulty,
+                trailType = filters.trailType,
+                parking = parkingBool,
+                description = filters.description,
+                duration = filters.duration,
+                elevation = filters.elevation
             ).collect { results ->
                 _searchResultState.value = results
             }
@@ -386,6 +418,17 @@ class HikeViewModel @Inject constructor(
 
     fun resetObservationForm(hikeId: Long? = null) {
         _addObservationUiState.value = AddObservationFormState(hikeId = hikeId)
+        if (hikeId != null) {
+            viewModelScope.launch {
+                val hike = hikeRepository.getHikeDetails(hikeId).firstOrNull()
+                if (hike != null && hike.latitude != null && hike.longitude != null) {
+                    _addObservationUiState.value = _addObservationUiState.value.copy(
+                        latitude = hike.latitude,
+                        longitude = hike.longitude
+                    )
+                }
+            }
+        }
     }
 
     fun loadObservationForEditing(observationId: Long) {
@@ -446,7 +489,7 @@ class HikeViewModel @Inject constructor(
         }
     }
 
-    private val _weatherState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
+    private val _weatherState = MutableStateFlow<WeatherUiState>(WeatherUiState.Idle)
     val weatherState = _weatherState.asStateFlow()
 
     fun fetchWeather(lat: Double, long: Double, date: Date?) {
@@ -687,6 +730,7 @@ class HikeViewModel @Inject constructor(
 }
 
 sealed class WeatherUiState {
+    object Idle : WeatherUiState()
     object Loading : WeatherUiState()
     object Error : WeatherUiState()
     data class Success(val temp: Double, val wind: Double, val code: Int) : WeatherUiState()
@@ -714,7 +758,13 @@ data class SearchFilters(
     val name: String? = null,
     val location: String? = null,
     val selectedDate: Date? = null,
-    val lengthRange: ClosedRange<Double>? = null
+    val lengthRange: ClosedRange<Double>? = null,
+    val difficulty: String = "All",
+    val trailType: String = "All",
+    val parking: String = "All", // "All", "Yes", "No"
+    val description: String? = null,
+    val duration: String? = null,
+    val elevation: String? = null
 )
 
 data class AddObservationFormState(

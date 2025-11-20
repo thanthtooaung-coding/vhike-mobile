@@ -9,16 +9,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Terrain
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,10 +35,8 @@ import com.vinn.vhike.data.db.Hike
 import com.vinn.vhike.ui.theme.AppTeal
 import com.vinn.vhike.ui.theme.LightGray
 import com.vinn.vhike.ui.viewmodel.HikeViewModel
-import com.vinn.vhike.ui.viewmodel.SearchFilters
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +49,6 @@ fun SearchHikeScreen(
     val filterState by viewModel.searchFilterState.collectAsState()
     val searchResults by viewModel.searchResultState.collectAsState()
 
-    // --- Date Picker Setup ---
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
@@ -105,14 +104,17 @@ fun SearchHikeScreen(
             }
         }
     ) { paddingValues ->
-        Column(
+
+        // FIX: Use ONE LazyColumn for EVERYTHING (Filters + Results)
+        LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color.White),
+            contentPadding = PaddingValues(16.dp)
         ) {
-            // --- Filter Controls ---
-            Column(modifier = Modifier.padding(16.dp)) {
+            // --- SECTION 1: FILTERS (Added as individual items) ---
+            item {
                 SearchTextField(
                     value = filterState.name ?: "",
                     onValueChange = { viewModel.onSearchNameChanged(it) },
@@ -120,6 +122,9 @@ fun SearchHikeScreen(
                     icon = Icons.Default.Search
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            item {
                 SearchTextField(
                     value = filterState.location ?: "",
                     onValueChange = { viewModel.onSearchLocationChanged(it) },
@@ -127,6 +132,9 @@ fun SearchHikeScreen(
                     icon = Icons.Default.LocationOn
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            item {
                 SearchTextField(
                     value = filterState.selectedDate?.let { dateFormat.format(it) } ?: "",
                     onValueChange = {},
@@ -135,32 +143,85 @@ fun SearchHikeScreen(
                     modifier = Modifier.clickable { datePickerDialog.show() },
                     readOnly = true
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SearchTextField(
+                        value = filterState.duration ?: "",
+                        onValueChange = { viewModel.onSearchDurationChanged(it) },
+                        placeholder = "Duration",
+                        icon = Icons.Default.Timer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    SearchTextField(
+                        value = filterState.elevation ?: "",
+                        onValueChange = { viewModel.onSearchElevationChanged(it) },
+                        placeholder = "Elevation",
+                        icon = Icons.Default.Terrain,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            item {
+                SearchTextField(
+                    value = filterState.description ?: "",
+                    onValueChange = { viewModel.onSearchDescriptionChanged(it) },
+                    placeholder = "Description contains...",
+                    icon = Icons.Default.Description
+                )
                 Spacer(modifier = Modifier.height(24.dp))
+            }
 
-                // --- Hike Length Slider ---
+            item {
+                SearchDropdown(
+                    label = "Difficulty",
+                    options = listOf("All", "Easy", "Moderate", "Difficult"),
+                    selected = filterState.difficulty,
+                    onSelected = { viewModel.onSearchDifficultyChanged(it) }
+                )
+
+                SearchDropdown(
+                    label = "Trail Type",
+                    options = listOf("All", "Loop", "Out & Back", "Multi-day"),
+                    selected = filterState.trailType,
+                    onSelected = { viewModel.onSearchTrailTypeChanged(it) }
+                )
+
+                SearchDropdown(
+                    label = "Parking",
+                    options = listOf("All", "Yes", "No"),
+                    selected = filterState.parking,
+                    onSelected = { viewModel.onSearchParkingChanged(it) }
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            item {
                 Text(
                     text = "Hike Length",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                // This is a complex control. A simple placeholder for now.
-                val sliderRange = (filterState.lengthRange?.start?.toFloat() ?: 0f)..(filterState.lengthRange?.endInclusive?.toFloat() ?: 10f)
-                val textRange = (filterState.lengthRange?.start ?: 2.0)..(filterState.lengthRange?.endInclusive ?: 10.0)
+                val sliderRange = (filterState.lengthRange?.start?.toFloat() ?: 0f)..(filterState.lengthRange?.endInclusive?.toFloat() ?: 50f)
+                val textRange = (filterState.lengthRange?.start ?: 0.0)..(filterState.lengthRange?.endInclusive ?: 50.0)
 
                 Text(
-                    text = "${"%.1f".format(textRange.start)}km - ${"%.1f".format(textRange.endInclusive)}km", // Dynamic text
+                    text = "${"%.1f".format(textRange.start)}km - ${"%.1f".format(textRange.endInclusive)}km",
                     color = AppTeal,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
                 )
                 RangeSlider(
                     value = sliderRange,
                     onValueChange = { range ->
-                        // Update VM, converting Float range to Double range
                         viewModel.onSearchLengthRangeChanged(range.start.toDouble()..range.endInclusive.toDouble())
                     },
-                    valueRange = 0f..50f, // Max range
+                    valueRange = 0f..50f,
                     steps = 49,
                     colors = SliderDefaults.colors(
                         thumbColor = AppTeal,
@@ -168,23 +229,79 @@ fun SearchHikeScreen(
                         inactiveTrackColor = LightGray
                     )
                 )
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // --- Search Results ---
-            Text(
-                text = "Showing ${searchResults.size} Results",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyColumn(
+            // --- SECTION 2: RESULTS HEADER (Visible now!) ---
+            item {
+                if (searchResults.isNotEmpty()) {
+                    Text(
+                        text = "Found ${searchResults.size} Results",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = AppTeal,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            // --- SECTION 3: THE ACTUAL LIST OF HIKES ---
+            items(searchResults) { hike ->
+                HikeResultItem(hike = hike, onClick = { onHikeClick(hike.id) })
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Bottom padding so FAB/Button doesn't hide last item
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchDropdown(
+    label: String,
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(text = label, fontSize = 12.sp, color = Color.Gray)
+        Box {
+            OutlinedTextField(
+                value = selected,
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .clickable { expanded = true },
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    containerColor = LightGray,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = AppTeal
+                ),
+                enabled = false
+            )
+            Box(modifier = Modifier.matchParentSize().clickable { expanded = true })
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
             ) {
-                items(searchResults) { hike ->
-                    HikeResultItem(hike = hike, onClick = { onHikeClick(hike.id) })
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onSelected(option)
+                            expanded = false
+                        }
+                    )
                 }
             }
         }
@@ -229,7 +346,6 @@ fun HikeResultItem(hike: Hike, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Icon
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -240,7 +356,6 @@ fun HikeResultItem(hike: Hike, onClick: () -> Unit) {
                 Icon(Icons.Default.Landscape, contentDescription = null, tint = AppTeal)
             }
             Spacer(modifier = Modifier.width(16.dp))
-            // Text
             Column {
                 Text(
                     text = hike.hikeName,
@@ -255,7 +370,7 @@ fun HikeResultItem(hike: Hike, onClick: () -> Unit) {
             }
         }
         Icon(
-            Icons.Default.ArrowForwardIos,
+            Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = "View details",
             tint = Color.Gray,
             modifier = Modifier.size(16.dp)

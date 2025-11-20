@@ -4,8 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,7 +11,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-// ... other imports
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Landscape
+import androidx.compose.material.icons.filled.Loop
+import androidx.compose.material.icons.filled.SquareFoot
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,8 +43,8 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-// ... other imports
 import com.vinn.vhike.data.db.Observation
+import com.vinn.vhike.ui.components.WeatherWidget
 import com.vinn.vhike.ui.theme.AppTeal
 import com.vinn.vhike.ui.theme.LightGray
 import com.vinn.vhike.ui.viewmodel.HikeViewModel
@@ -60,10 +64,14 @@ fun HikeDetailScreen(
     val hike = allHikes.find { it.id == hikeId }
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Observations", "Map") // Renamed from "Coming Soon"
+    // UPDATED: Renamed tab from "Map" to "Forecast"
+    val tabs = listOf("Observations", "Forecast")
 
     val observations by viewModel.getObservationsForHike(hikeId)
         .collectAsState(initial = emptyList())
+
+    // NEW: Observe weather state
+    val weatherState by viewModel.weatherState.collectAsState()
 
     val scrollState = rememberScrollState()
 
@@ -87,9 +95,8 @@ fun HikeDetailScreen(
                 )
             )
         },
-        // --- NEW Floating Action Button ---
         floatingActionButton = {
-            if (selectedTab == 0 && hike != null) { // Only show on Observations tab
+            if (selectedTab == 0 && hike != null) {
                 FloatingActionButton(
                     onClick = { onAddObservationClick(hike.id) },
                     containerColor = AppTeal,
@@ -102,16 +109,19 @@ fun HikeDetailScreen(
         }
     ) { paddingValues ->
         if (hike == null) {
-            // ... (loading state) ...
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AppTeal)
+            }
         } else {
-            // --- Map variables ---
             val cameraPositionState = rememberCameraPositionState()
-            val uiSettings = remember { MapUiSettings(zoomControlsEnabled = false) }
+            val uiSettings = remember { MapUiSettings(zoomControlsEnabled = false, scrollGesturesEnabled = false, zoomGesturesEnabled = false) }
             val hikeLocation = LatLng(hike.latitude ?: 0.0, hike.longitude ?: 0.0)
 
             LaunchedEffect(hikeLocation) {
                 if (hike.latitude != null && hike.longitude != null) {
                     cameraPositionState.position = CameraPosition.fromLatLngZoom(hikeLocation, 12f)
+                    // NEW: Fetch weather when screen loads
+                    viewModel.fetchWeather(hike.latitude, hike.longitude, hike.hikeDate)
                 }
             }
 
@@ -121,44 +131,24 @@ fun HikeDetailScreen(
                     .padding(paddingValues)
                     .background(Color.White)
             ) {
-                // This Column is scrollable ONLY if the "Map" tab is NOT selected
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .then(
-                            if (selectedTab == 0) Modifier.verticalScroll(scrollState)
-                            else Modifier
-                        )
+                        .verticalScroll(scrollState) // Always scrollable now
                 ) {
-                    // --- MAP/IMAGE HEADER (Stays static) ---
+                    // --- MAP HEADER (Static) ---
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(250.dp)
                             .background(LightGray)
                     ) {
-                        if (hike.latitude != null && hike.longitude != null && selectedTab == 1) {
-                            // Show interactive map only on Map tab
+                        if (hike.latitude != null && hike.longitude != null) {
                             GoogleMap(
                                 modifier = Modifier.fillMaxSize(),
                                 cameraPositionState = cameraPositionState,
-                                uiSettings = uiSettings.copy(zoomControlsEnabled = true)
-                            ) {
-                                Marker(
-                                    state = MarkerState(position = hikeLocation),
-                                    title = hike.hikeName
-                                )
-                            }
-                        } else if (hike.latitude != null && hike.longitude != null) {
-                            // Show static map on Observations tab
-                            GoogleMap(
-                                modifier = Modifier.fillMaxSize(),
-                                cameraPositionState = cameraPositionState,
-                                uiSettings = uiSettings.copy(
-                                    scrollGesturesEnabled = false,
-                                    zoomGesturesEnabled = false
-                                )
+                                uiSettings = uiSettings
                             ) {
                                 Marker(
                                     state = MarkerState(position = hikeLocation),
@@ -166,7 +156,6 @@ fun HikeDetailScreen(
                                 )
                             }
                         }
-                        // --- Text Overlay ---
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -188,24 +177,16 @@ fun HikeDetailScreen(
                         }
                     }
 
+                    // --- Stats Row ---
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        StatItem(
-                            value = "${hike.hikeLength} km",
-                            label = "DISTANCE"
-                        )
-                        StatItem(
-                            value = hike.duration.ifBlank { "N/A" },
-                            label = "DURATION"
-                        )
-                        StatItem(
-                            value = hike.elevation?.let { "${it.toInt()} ft" } ?: "N/A",
-                            label = "ELEVATION"
-                        )
+                        StatItem(value = "${hike.hikeLength} km", label = "DISTANCE")
+                        StatItem(value = hike.duration.ifBlank { "N/A" }, label = "DURATION")
+                        StatItem(value = hike.elevation?.let { "${it.toInt()} ft" } ?: "N/A", label = "ELEVATION")
                     }
 
                     // --- TABS ---
@@ -225,19 +206,42 @@ fun HikeDetailScreen(
                         }
                     }
 
+                    // --- TAB CONTENT ---
                     when (selectedTab) {
                         0 -> ObservationList(
                             observations = observations,
                             onObservationClick = onObservationClick
                         )
-                        1 -> { /* Map is already handled in the header */ }
+                        1 -> {
+                            // NEW: Weather/Forecast Tab Content
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Weather Conditions",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                Text(
+                                    text = "Conditions for the date of the hike:",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+
+                                // Reusing your existing WeatherWidget
+                                WeatherWidget(state = weatherState)
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(80.dp)) // Bottom padding for FAB
                 }
             }
         }
     }
 }
 
+// ... [StatItem, ObservationList, ObservationItem implementations remain the same] ...
 @Composable
 fun StatItem(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

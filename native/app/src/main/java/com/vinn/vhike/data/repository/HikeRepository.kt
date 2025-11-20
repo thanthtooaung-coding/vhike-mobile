@@ -37,7 +37,13 @@ class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
         location: String?,
         date: Date?,
         lengthMin: Double?,
-        lengthMax: Double?
+        lengthMax: Double?,
+        difficulty: String?,
+        trailType: String?,
+        parking: Boolean?,
+        description: String?,
+        duration: String?,
+        elevation: String?
     ): Flow<List<Hike>> {
         return hikeDao.searchHikes(
             userId = userId,
@@ -45,7 +51,13 @@ class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
             location = if (location.isNullOrBlank()) null else location,
             date = date,
             lengthMin = lengthMin,
-            lengthMax = lengthMax
+            lengthMax = lengthMax,
+            difficulty = if (difficulty == "All") null else difficulty,
+            trailType = if (trailType == "All") null else trailType,
+            parking = parking,
+            description = if (description.isNullOrBlank()) null else description,
+            duration = if (duration.isNullOrBlank()) null else duration,
+            elevation = if (elevation.isNullOrBlank()) null else elevation
         )
     }
 

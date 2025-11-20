@@ -177,14 +177,14 @@ fun AddHikeScreen(
                 }
             )
 
-            WeatherWidget(state = weatherState)
-
             // --- Date of the hike ---
             DatePickerField(
                 label = "Date of the hike",
                 selectedDate = uiState.hikeDate,
                 onDateSelected = { viewModel.onDateSelected(it) }
             )
+
+            WeatherWidget(state = weatherState)
 
             // --- Description ---
             FormTextField(

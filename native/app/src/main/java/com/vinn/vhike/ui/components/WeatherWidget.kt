@@ -1,14 +1,18 @@
 package com.vinn.vhike.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +31,35 @@ fun WeatherWidget(state: WeatherUiState) {
         shape = RoundedCornerShape(16.dp)
     ) {
         when (state) {
+            is WeatherUiState.Idle -> {
+                // --- NEW IDLE STATE UI ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.Gray.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = Color.Gray
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Select a location and date to view the forecast.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
+            }
             is WeatherUiState.Loading -> {
                 Box(Modifier.padding(16.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = AppTeal)
@@ -51,7 +84,7 @@ fun WeatherWidget(state: WeatherUiState) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = if(state.code < 3) "Sunny" else "Cloudy/Rain", 
+                                text = if(state.code < 3) "Sunny" else "Cloudy/Rain",
                                 fontWeight = FontWeight.Bold
                             )
                             Text(text = "High: ${state.temp}° / Wind: ${state.wind}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)

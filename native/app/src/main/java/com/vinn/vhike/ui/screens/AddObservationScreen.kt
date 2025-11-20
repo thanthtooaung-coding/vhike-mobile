@@ -1,6 +1,7 @@
 package com.vinn.vhike.ui.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -56,6 +57,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddObservationScreen(
@@ -107,7 +109,7 @@ fun AddObservationScreen(
         }
     }
 
-    LaunchedEffect(hasLocationPermission, uiState.latitude) {
+    /*LaunchedEffect(hasLocationPermission, uiState.latitude) {
         if (hasLocationPermission && uiState.latitude == null) {
             if (ContextCompat.checkSelfPermission(
                     context, Manifest.permission.ACCESS_FINE_LOCATION
@@ -122,7 +124,7 @@ fun AddObservationScreen(
                 }
             }
         }
-    }
+    }*/
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -299,12 +301,18 @@ fun AddObservationScreen(
                     }
                 }
 
-                val locationText = if (observationLocation != null) {
+                /*val locationText = if (observationLocation != null) {
                     "Location: ${String.format("%.4f", observationLocation.latitude)}, ${String.format("%.4f", observationLocation.longitude)}"
                 } else if (hasLocationPermission) {
                     "Getting location... (Tap map to set)"
                 } else {
                     "Location permission denied. (Tap map to set)"
+                }*/
+
+                val locationText = if (observationLocation != null) {
+                    "Location: ${String.format("%.4f", observationLocation.latitude)}, ${String.format("%.4f", observationLocation.longitude)}"
+                } else {
+                    "Tap map to set location"
                 }
 
                 Text(

@@ -48,13 +48,21 @@ interface HikeDao {
     fun getHikeById(hikeId: Long): Flow<Hike?>
 
     @Query(
-        "SELECT * FROM hike_registry WHERE " +
-                "userId = :userId AND " +
-                "(:name IS NULL OR hikeName LIKE '%' || :name || '%') AND " +
-                "(:location IS NULL OR location LIKE '%' || :location || '%') AND " +
-                "(:date IS NULL OR hikeDate = :date) AND " +
-                "(:lengthMin IS NULL OR hikeLength >= :lengthMin) AND " +
-                "(:lengthMax IS NULL OR hikeLength <= :lengthMax)"
+        """
+        SELECT * FROM hike_registry WHERE 
+        userId = :userId AND 
+        (:name IS NULL OR hikeName LIKE '%' || :name || '%') AND 
+        (:location IS NULL OR location LIKE '%' || :location || '%') AND 
+        (:date IS NULL OR hikeDate = :date) AND 
+        (:lengthMin IS NULL OR hikeLength >= :lengthMin) AND 
+        (:lengthMax IS NULL OR hikeLength <= :lengthMax) AND
+        (:difficulty IS NULL OR difficultyLevel = :difficulty) AND
+        (:trailType IS NULL OR trailType = :trailType) AND
+        (:parking IS NULL OR parkingAvailable = :parking) AND
+        (:description IS NULL OR description LIKE '%' || :description || '%') AND
+        (:duration IS NULL OR duration LIKE '%' || :duration || '%') AND
+        (:elevation IS NULL OR elevation LIKE '%' || :elevation || '%')
+        """
     )
     fun searchHikes(
         userId: Long,
@@ -62,7 +70,13 @@ interface HikeDao {
         location: String?,
         date: Date?,
         lengthMin: Double?,
-        lengthMax: Double?
+        lengthMax: Double?,
+        difficulty: String?,
+        trailType: String?,
+        parking: Boolean?,
+        description: String?,
+        duration: String?,
+        elevation: String?
     ): Flow<List<Hike>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
