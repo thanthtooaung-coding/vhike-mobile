@@ -38,6 +38,9 @@ interface HikeDao {
     @Delete
     suspend fun deleteHike(hike: Hike)
 
+    @Query("DELETE FROM hike_registry WHERE userId = :userId")
+    suspend fun deleteHikesForUser(userId: Long)
+
     @Query("SELECT * FROM hike_registry WHERE userId = :userId ORDER BY hikeDate DESC")
     fun getHikesForUser(userId: Long): Flow<List<Hike>>
 

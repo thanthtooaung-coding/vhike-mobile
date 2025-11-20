@@ -4,6 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.KeyboardOptions // Import
+import androidx.compose.material.icons.Icons // Import
+import androidx.compose.material.icons.filled.Visibility // Import
+import androidx.compose.material.icons.filled.VisibilityOff // Import
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,7 +18,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType // Import
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation // Import
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -35,9 +41,12 @@ fun SignupScreen(
     var password by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
 
-    // 1. Add state for Policy Agreement
+    // 1. Add Visibility States
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+
     var isPolicyAccepted by remember { mutableStateOf(false) }
-    var policyError by remember { mutableStateOf(false) } // Local validation state
+    var policyError by remember { mutableStateOf(false) }
 
     val authState by viewModel.loginState.collectAsState()
 
@@ -58,15 +67,46 @@ fun SignupScreen(
         Text("Join Trailblazer and start your next adventure.", color = Color.Gray)
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email Address") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email Address") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(value = confirmPass, onValueChange = { confirmPass = it }, label = { Text("Confirm Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
 
-        // 2. The Policy Agreement UI
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = "Toggle Password Visibility", tint = Color.Gray)
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 3. Confirm Password Field with Toggle
+        OutlinedTextField(
+            value = confirmPass,
+            onValueChange = { confirmPass = it },
+            label = { Text("Confirm Password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                val image = if (confirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                    Icon(imageVector = image, contentDescription = "Toggle Password Visibility", tint = Color.Gray)
+                }
+            }
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -77,7 +117,7 @@ fun SignupScreen(
                 checked = isPolicyAccepted,
                 onCheckedChange = {
                     isPolicyAccepted = it
-                    policyError = false // Clear error when clicked
+                    policyError = false
                 },
                 colors = CheckboxDefaults.colors(
                     checkedColor = AppTeal,
@@ -85,7 +125,6 @@ fun SignupScreen(
                 )
             )
 
-            // Styled Text
             val policyText = buildAnnotatedString {
                 withStyle(style = SpanStyle(color = Color.Gray)) {
                     append("I agree to the ")
@@ -111,14 +150,12 @@ fun SignupScreen(
             ClickableText(
                 text = policyText,
                 onClick = { offset ->
-                    // Handle links (You can add navigation here later)
                     policyText.getStringAnnotations(tag = "policy", start = offset, end = offset).firstOrNull()?.let {
-                        // Navigate to Privacy Policy
+                        // Navigate to Policy
                     }
                     policyText.getStringAnnotations(tag = "terms", start = offset, end = offset).firstOrNull()?.let {
                         // Navigate to Terms
                     }
-                    // Also toggle checkbox if text is clicked (better UX)
                     isPolicyAccepted = !isPolicyAccepted
                     policyError = false
                 }
@@ -134,7 +171,6 @@ fun SignupScreen(
             )
         }
 
-        // Display Backend Error Message
         if (authState is AuthState.Error) {
             Text(
                 text = (authState as AuthState.Error).message,
@@ -146,11 +182,10 @@ fun SignupScreen(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
-                // 3. Validation Logic
                 if (!isPolicyAccepted) {
                     policyError = true
                 } else if (password != confirmPass) {
-                    // Ideally show a specific password error here
+                    // Handle error manually or via viewmodel
                 } else {
                     viewModel.signup(name, email, password)
                 }

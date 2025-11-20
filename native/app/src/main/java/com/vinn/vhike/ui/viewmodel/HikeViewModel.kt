@@ -12,18 +12,23 @@ import com.vinn.vhike.data.UserSession
 import com.vinn.vhike.data.api.WeatherService
 import com.vinn.vhike.data.db.Hike
 import com.vinn.vhike.data.db.Observation
+import com.vinn.vhike.data.db.User
+import com.vinn.vhike.data.db.UserDao
 import com.vinn.vhike.data.repository.GitHubRepository
 import com.vinn.vhike.data.repository.HikeRepository
+import com.vinn.vhike.util.EmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -31,16 +36,27 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltViewModel
 class HikeViewModel @Inject constructor(
     private val hikeRepository: HikeRepository,
     private val gitHubRepository: GitHubRepository,
     private val weatherService: WeatherService,
-    private val userSession: UserSession
+    private val userSession: UserSession,
+    private val userDao: UserDao
 ) : ViewModel() {
 
     private val _currentUserId = MutableStateFlow(userSession.currentUserId)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val currentUser: StateFlow<User?> = _currentUserId.flatMapLatest { userId ->
+        if (userId != null) {
+            userDao.getUserById(userId)
+        } else {
+            flowOf(null)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val allHikes: Flow<List<Hike>> = _currentUserId.flatMapLatest { userId ->
@@ -483,6 +499,191 @@ class HikeViewModel @Inject constructor(
             }
         }
     }
+
+    fun resetDatabase() {
+        val userId = userSession.currentUserId ?: return
+        viewModelScope.launch {
+            hikeRepository.clearHikesForUser(userId)
+        }
+    }
+
+    private val _editProfileState = MutableStateFlow<EditProfileState>(EditProfileState.Idle)
+    val editProfileState = _editProfileState.asStateFlow()
+
+    fun resetEditProfileState() {
+        _editProfileState.value = EditProfileState.Idle
+    }
+
+    fun updateUserProfile(newName: String, newEmail: String) {
+        val currentUser = currentUser.value ?: return
+
+        if (newName.isBlank() || newEmail.isBlank()) {
+            _editProfileState.value = EditProfileState.Error("Fields cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            _editProfileState.value = EditProfileState.Loading
+
+            if (newEmail != currentUser.email) {
+                val existingUser = userDao.getUserByEmail(newEmail)
+                if (existingUser != null) {
+                    _editProfileState.value = EditProfileState.Error("Email already exists")
+                    return@launch
+                }
+            }
+
+            val updatedUser = currentUser.copy(
+                fullName = newName,
+                email = newEmail
+            )
+
+            try {
+                userDao.updateUser(updatedUser)
+                _editProfileState.value = EditProfileState.Success
+            } catch (e: Exception) {
+                _editProfileState.value = EditProfileState.Error("Failed to update profile")
+            }
+        }
+    }
+
+    private val _changePasswordState = MutableStateFlow<ChangePasswordState>(ChangePasswordState.Idle)
+    val changePasswordState = _changePasswordState.asStateFlow()
+
+    fun resetChangePasswordState() {
+        _changePasswordState.value = ChangePasswordState.Idle
+    }
+
+    fun updatePassword(currentPass: String, newPass: String, confirmPass: String) {
+        val userId = userSession.currentUserId
+        if (userId == null) {
+            _changePasswordState.value =
+                ChangePasswordState.Error("Session expired. Please log out and log in again.")
+            return
+        }
+
+        // 2. Validation
+        if (currentPass.isBlank() || newPass.isBlank() || confirmPass.isBlank()) {
+            _changePasswordState.value = ChangePasswordState.Error("All fields are required")
+            return
+        }
+
+        if (newPass != confirmPass) {
+            _changePasswordState.value = ChangePasswordState.Error("New passwords do not match")
+            return
+        }
+
+        if (newPass.length < 6) {
+            _changePasswordState.value =
+                ChangePasswordState.Error("Password must be at least 6 characters")
+            return
+        }
+
+        viewModelScope.launch {
+            _changePasswordState.value = ChangePasswordState.Loading
+
+            // 3. Fetch User directly from DB (Safe way)
+            val user = userDao.getUserById(userId).firstOrNull()
+
+            if (user == null) {
+                _changePasswordState.value = ChangePasswordState.Error("User not found.")
+                return@launch
+            }
+
+            // 4. Verify Password
+            if (user.passwordHash != currentPass) {
+                _changePasswordState.value = ChangePasswordState.Error("Incorrect current password")
+                return@launch
+            }
+
+            // 5. Update
+            val updatedUser = user.copy(passwordHash = newPass)
+
+            try {
+                userDao.updateUser(updatedUser)
+                _changePasswordState.value = ChangePasswordState.Success
+            } catch (e: Exception) {
+                _changePasswordState.value = ChangePasswordState.Error("Failed to update password")
+            }
+        }
+    }
+
+    private val _otpState = MutableStateFlow<OtpState>(OtpState.Hidden)
+    val otpState = _otpState.asStateFlow()
+
+    private var actualOtp: String = ""
+
+    fun dismissOtpDialog() {
+        _otpState.value = OtpState.Hidden
+        // If they cancel, we should probably stop the loading state too
+        if (_editProfileState.value is EditProfileState.Loading) {
+            _editProfileState.value = EditProfileState.Idle
+        }
+    }
+
+    fun initiateProfileUpdate(newName: String, newEmail: String) {
+        val currentUser = currentUser.value ?: return
+
+        if (newName.isBlank() || newEmail.isBlank()) {
+            _editProfileState.value = EditProfileState.Error("Fields cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            // 1. Check if email is already taken
+            if (newEmail != currentUser.email) {
+                val existingUser = userDao.getUserByEmail(newEmail)
+                if (existingUser != null) {
+                    _editProfileState.value = EditProfileState.Error("Email already exists")
+                    return@launch
+                }
+
+                // 2. Generate OTP
+                actualOtp = Random.nextInt(100000, 999999).toString()
+
+                // 3. Show Loading State while sending email
+                _editProfileState.value = EditProfileState.Loading
+
+                // 4. Send Real Email
+                val isSent = EmailSender.sendOtpEmail(newEmail, actualOtp)
+
+                if (isSent) {
+                    // Email sent successfully, show dialog
+                    _editProfileState.value = EditProfileState.Idle // Stop loading spinner
+                    _otpState.value = OtpState.Visible
+                } else {
+                    _editProfileState.value = EditProfileState.Error("Failed to send verification email. Check internet connection.")
+                }
+
+            } else {
+                // Email didn't change, just update name immediately
+                finalizeProfileUpdate(newName, newEmail)
+            }
+        }
+    }
+
+    fun verifyOtpAndSave(inputOtp: String, newName: String, newEmail: String) {
+        if (inputOtp == actualOtp) {
+            _otpState.value = OtpState.Hidden
+            finalizeProfileUpdate(newName, newEmail)
+        } else {
+            _otpState.value = OtpState.Error("Invalid Code")
+        }
+    }
+
+    private fun finalizeProfileUpdate(newName: String, newEmail: String) {
+        val currentUser = currentUser.value ?: return
+        viewModelScope.launch {
+            _editProfileState.value = EditProfileState.Loading
+            val updatedUser = currentUser.copy(fullName = newName, email = newEmail)
+            try {
+                userDao.updateUser(updatedUser)
+                _editProfileState.value = EditProfileState.Success
+            } catch (e: Exception) {
+                _editProfileState.value = EditProfileState.Error("Failed to update profile")
+            }
+        }
+    }
 }
 
 sealed class WeatherUiState {
@@ -527,3 +728,23 @@ data class AddObservationFormState(
     val longitude: Double? = null,
     val errorMessage: String? = null
 )
+
+sealed class EditProfileState {
+    object Idle : EditProfileState()
+    object Loading : EditProfileState()
+    object Success : EditProfileState()
+    data class Error(val message: String) : EditProfileState()
+}
+
+sealed class ChangePasswordState {
+    object Idle : ChangePasswordState()
+    object Loading : ChangePasswordState()
+    object Success : ChangePasswordState()
+    data class Error(val message: String) : ChangePasswordState()
+}
+
+sealed class OtpState {
+    object Hidden : OtpState()
+    object Visible : OtpState()
+    data class Error(val message: String) : OtpState()
+}

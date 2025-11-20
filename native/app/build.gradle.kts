@@ -60,13 +60,11 @@ android {
     buildFeatures {
         compose = true
     }
-    // 2. REMOVE THIS ENTIRE BLOCK
-    // composeOptions {
-    //     kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
-    // }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/LICENSE.md"
         }
     }
 }
@@ -126,6 +124,9 @@ dependencies {
 
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 }
 
 // Allow references to generated code

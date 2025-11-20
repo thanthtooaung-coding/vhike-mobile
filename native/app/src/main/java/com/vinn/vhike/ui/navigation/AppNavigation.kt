@@ -6,8 +6,11 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.vinn.vhike.R
 import com.vinn.vhike.ui.screens.AddHikeScreen
 import com.vinn.vhike.ui.screens.AddObservationScreen
+import com.vinn.vhike.ui.screens.ChangePasswordScreen
+import com.vinn.vhike.ui.screens.EditProfileScreen
 import com.vinn.vhike.ui.screens.HikeConfirmationScreen
 import com.vinn.vhike.ui.screens.HikeDetailScreen
 import com.vinn.vhike.ui.screens.HikeListScreen
@@ -15,7 +18,9 @@ import com.vinn.vhike.ui.screens.LoginScreen
 import com.vinn.vhike.ui.screens.MapPickerScreen
 import com.vinn.vhike.ui.screens.ObservationDetailScreen
 import com.vinn.vhike.ui.screens.SearchHikeScreen
+import com.vinn.vhike.ui.screens.SettingsScreen
 import com.vinn.vhike.ui.screens.SignupScreen
+import com.vinn.vhike.ui.screens.TextContentScreen
 
 object AppDestinations {
     const val HIKE_LIST = "hike_list"
@@ -30,6 +35,11 @@ object AppDestinations {
     const val OBSERVATION_ID_ARG = "observationId"
     const val LOGIN = "login"
     const val SIGNUP = "signup"
+    const val SETTINGS = "settings"
+    const val PRIVACY_POLICY = "privacy_policy"
+    const val TERMS_OF_SERVICE = "terms_of_service"
+    const val EDIT_PROFILE = "edit_profile"
+    const val CHANGE_PASSWORD = "change_password"
 }
 
 @Composable
@@ -64,6 +74,7 @@ fun AppNavigation(navController: NavHostController) {
                     navController.navigate(AppDestinations.ADD_HIKE)
                 },
                 onSearchClick = { navController.navigate(AppDestinations.SEARCH_HIKES) },
+                onSettingsClick = { navController.navigate(AppDestinations.SETTINGS) },
                 onHikeClick = { hikeId ->
                     navController.navigate("${AppDestinations.HIKE_DETAIL}/$hikeId")
                 },
@@ -207,6 +218,46 @@ fun AppNavigation(navController: NavHostController) {
                     }
                 )
             }
+        }
+        composable(AppDestinations.SETTINGS) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onPrivacyPolicyClick = { navController.navigate(AppDestinations.PRIVACY_POLICY) },
+                onTermsClick = { navController.navigate(AppDestinations.TERMS_OF_SERVICE) },
+                onEditProfileClick = { navController.navigate(AppDestinations.EDIT_PROFILE) },
+                onChangePasswordClick = { navController.navigate(AppDestinations.CHANGE_PASSWORD) },
+                onLogoutClick = {
+                    navController.navigate(AppDestinations.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(AppDestinations.PRIVACY_POLICY) {
+            TextContentScreen(
+                titleId = R.string.privacy_policy_title,
+                contentId = R.string.lorem_ipsum_content,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(AppDestinations.TERMS_OF_SERVICE) {
+            TextContentScreen(
+                titleId = R.string.terms_of_service_title,
+                contentId = R.string.lorem_ipsum_content,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(AppDestinations.EDIT_PROFILE) {
+            EditProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(AppDestinations.CHANGE_PASSWORD) {
+            ChangePasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

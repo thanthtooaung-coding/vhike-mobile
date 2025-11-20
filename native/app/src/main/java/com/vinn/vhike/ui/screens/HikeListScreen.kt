@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -42,6 +43,7 @@ import java.util.Locale
 fun HikeListScreen(
     onAddHike: () -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onHikeClick: (Long) -> Unit,
     onEditHike: (Long) -> Unit,
     onLogout: () -> Unit,
@@ -92,6 +94,19 @@ fun HikeListScreen(
                             expanded = showTopBarMenu,
                             onDismissRequest = { showTopBarMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = {
+                                    showTopBarMenu = false
+                                    onSettingsClick()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Settings"
+                                    )
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Log Out") },
                                 onClick = {

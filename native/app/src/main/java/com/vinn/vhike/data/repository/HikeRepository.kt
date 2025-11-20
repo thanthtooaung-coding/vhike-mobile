@@ -27,6 +27,10 @@ class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
         hikeDao.deleteHike(hike)
     }
 
+    suspend fun clearHikesForUser(userId: Long) {
+        hikeDao.deleteHikesForUser(userId)
+    }
+
     fun performSearch(
         userId: Long,
         name: String?,
