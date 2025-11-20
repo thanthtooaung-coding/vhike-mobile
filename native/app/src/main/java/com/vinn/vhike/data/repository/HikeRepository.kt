@@ -11,7 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
 
-    val allHikes: Flow<List<Hike>> = hikeDao.getAllHikes()
+    fun getHikesForUser(userId: Long): Flow<List<Hike>> = hikeDao.getHikesForUser(userId)
 
     fun getHikeDetails(hikeId: Long): Flow<Hike?> = hikeDao.getHikeById(hikeId)
 
@@ -27,11 +27,8 @@ class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
         hikeDao.deleteHike(hike)
     }
 
-    suspend fun clearAllHikes() {
-        hikeDao.deleteAllHikes()
-    }
-
     fun performSearch(
+        userId: Long,
         name: String?,
         location: String?,
         date: Date?,
@@ -39,6 +36,7 @@ class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
         lengthMax: Double?
     ): Flow<List<Hike>> {
         return hikeDao.searchHikes(
+            userId = userId,
             name = if (name.isNullOrBlank()) null else name,
             location = if (location.isNullOrBlank()) null else location,
             date = date,

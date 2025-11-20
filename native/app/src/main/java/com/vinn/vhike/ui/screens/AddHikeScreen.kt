@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import com.google.android.gms.maps.model.LatLng
+import com.vinn.vhike.ui.components.WeatherWidget
 import com.vinn.vhike.ui.theme.AppTeal
 import com.vinn.vhike.ui.theme.LightGray
 import com.vinn.vhike.ui.viewmodel.AddHikeFormState
@@ -61,6 +62,14 @@ fun AddHikeScreen(
     val savedHikeId by viewModel.savedHikeId.collectAsState()
 
     var isInitialized by rememberSaveable { mutableStateOf(false) }
+
+    val weatherState by viewModel.weatherState.collectAsState()
+
+    LaunchedEffect(uiState.latitude, uiState.longitude, uiState.hikeDate) {
+        if (uiState.latitude != null && uiState.longitude != null) {
+            viewModel.fetchWeather(uiState.latitude!!, uiState.longitude!!, uiState.hikeDate)
+        }
+    }
 
     LaunchedEffect(savedHikeId) {
         savedHikeId?.let { id ->
@@ -168,6 +177,15 @@ fun AddHikeScreen(
                 }
             )
 
+            WeatherWidget(state = weatherState)
+
+            // --- Date of the hike ---
+            DatePickerField(
+                label = "Date of the hike",
+                selectedDate = uiState.hikeDate,
+                onDateSelected = { viewModel.onDateSelected(it) }
+            )
+
             // --- Description ---
             FormTextField(
                 label = "Description",
@@ -176,13 +194,6 @@ fun AddHikeScreen(
                 onValueChange = { viewModel.onDescriptionChanged(it) },
                 singleLine = false,
                 modifier = Modifier.height(120.dp)
-            )
-
-            // --- Date of the hike ---
-            DatePickerField(
-                label = "Date of the hike",
-                selectedDate = uiState.hikeDate,
-                onDateSelected = { viewModel.onDateSelected(it) }
             )
 
             // --- Length (Full Width) ---

@@ -3,6 +3,7 @@ package com.vinn.vhike.di
 import android.content.Context
 import com.vinn.vhike.data.db.HikeDao
 import com.vinn.vhike.data.db.HikeDatabase
+import com.vinn.vhike.data.db.UserDao
 import com.vinn.vhike.data.repository.HikeRepository
 import dagger.Module
 import dagger.Provides
@@ -25,6 +26,12 @@ object AppModule {
     @Singleton
     fun provideHikeDao(database: HikeDatabase): HikeDao {
         return database.hikeDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserDao(database: HikeDatabase): UserDao {
+        return database.userDao()
     }
 
     @Provides

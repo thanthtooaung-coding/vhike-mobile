@@ -38,17 +38,15 @@ interface HikeDao {
     @Delete
     suspend fun deleteHike(hike: Hike)
 
-    @Query("DELETE FROM hike_registry")
-    suspend fun deleteAllHikes()
-
-    @Query("SELECT * FROM hike_registry ORDER BY hikeDate DESC")
-    fun getAllHikes(): Flow<List<Hike>>
+    @Query("SELECT * FROM hike_registry WHERE userId = :userId ORDER BY hikeDate DESC")
+    fun getHikesForUser(userId: Long): Flow<List<Hike>>
 
     @Query("SELECT * FROM hike_registry WHERE id = :hikeId")
     fun getHikeById(hikeId: Long): Flow<Hike?>
 
     @Query(
         "SELECT * FROM hike_registry WHERE " +
+                "userId = :userId AND " +
                 "(:name IS NULL OR hikeName LIKE '%' || :name || '%') AND " +
                 "(:location IS NULL OR location LIKE '%' || :location || '%') AND " +
                 "(:date IS NULL OR hikeDate = :date) AND " +
@@ -56,6 +54,7 @@ interface HikeDao {
                 "(:lengthMax IS NULL OR hikeLength <= :lengthMax)"
     )
     fun searchHikes(
+        userId: Long,
         name: String?,
         location: String?,
         date: Date?,
@@ -77,13 +76,17 @@ interface HikeDao {
 
     @Query("SELECT * FROM observation_log WHERE id = :observationId")
     fun getObservationById(observationId: Long): Flow<Observation?>
+
+    @Query("DELETE FROM hike_registry")
+    suspend fun deleteAllHikes()
 }
 
-@Database(entities = [Hike::class, Observation::class], version = 5, exportSchema = false)
+@Database(entities = [Hike::class, Observation::class, User::class], version = 7, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class HikeDatabase : RoomDatabase() {
 
     abstract fun hikeDao(): HikeDao
+    abstract fun userDao(): UserDao
 
     companion object {
         @Volatile

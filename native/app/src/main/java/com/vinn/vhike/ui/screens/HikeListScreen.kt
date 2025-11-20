@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -43,11 +44,14 @@ fun HikeListScreen(
     onSearchClick: () -> Unit,
     onHikeClick: (Long) -> Unit,
     onEditHike: (Long) -> Unit,
+    onLogout: () -> Unit,
     viewModel: HikeViewModel = hiltViewModel()
 ) {
     val hikes by viewModel.allHikes.collectAsState(initial = emptyList())
 
     var hikeToDelete by remember { mutableStateOf<Hike?>(null) }
+
+    var showTopBarMenu by remember { mutableStateOf(false) }
 
     if (hikeToDelete != null) {
         AlertDialog(
@@ -79,6 +83,30 @@ fun HikeListScreen(
                 actions = {
                     IconButton(onClick = onSearchClick) {
                         Icon(Icons.Default.Search, contentDescription = "Search Hikes")
+                    }
+                    Box {
+                        IconButton(onClick = { showTopBarMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                        }
+                        DropdownMenu(
+                            expanded = showTopBarMenu,
+                            onDismissRequest = { showTopBarMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Log Out") },
+                                onClick = {
+                                    showTopBarMenu = false
+                                    viewModel.logout()
+                                    onLogout()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ExitToApp,
+                                        contentDescription = "Log Out"
+                                    )
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

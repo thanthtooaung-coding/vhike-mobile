@@ -11,9 +11,11 @@ import com.vinn.vhike.ui.screens.AddObservationScreen
 import com.vinn.vhike.ui.screens.HikeConfirmationScreen
 import com.vinn.vhike.ui.screens.HikeDetailScreen
 import com.vinn.vhike.ui.screens.HikeListScreen
+import com.vinn.vhike.ui.screens.LoginScreen
 import com.vinn.vhike.ui.screens.MapPickerScreen
 import com.vinn.vhike.ui.screens.ObservationDetailScreen
 import com.vinn.vhike.ui.screens.SearchHikeScreen
+import com.vinn.vhike.ui.screens.SignupScreen
 
 object AppDestinations {
     const val HIKE_LIST = "hike_list"
@@ -26,14 +28,36 @@ object AppDestinations {
     const val ADD_OBSERVATION = "add_observation"
     const val OBSERVATION_DETAIL = "observation_detail"
     const val OBSERVATION_ID_ARG = "observationId"
+    const val LOGIN = "login"
+    const val SIGNUP = "signup"
 }
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = AppDestinations.HIKE_LIST
+        startDestination = AppDestinations.LOGIN
     ) {
+        composable(AppDestinations.LOGIN) {
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(AppDestinations.HIKE_LIST) {
+                        popUpTo(AppDestinations.LOGIN) { inclusive = true }
+                    }
+                },
+                onNavigateToSignup = { navController.navigate(AppDestinations.SIGNUP) }
+            )
+        }
+        composable(AppDestinations.SIGNUP) {
+            SignupScreen(
+                onSignupSuccess = {
+                    navController.navigate(AppDestinations.HIKE_LIST) {
+                        popUpTo(AppDestinations.LOGIN) { inclusive = true }
+                    }
+                },
+                onNavigateToLogin = { navController.popBackStack() }
+            )
+        }
         composable(AppDestinations.HIKE_LIST) {
             HikeListScreen(
                 onAddHike = {
@@ -45,6 +69,11 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onEditHike = { hikeId ->
                     navController.navigate("${AppDestinations.ADD_HIKE}?${AppDestinations.HIKE_ID_ARG}=$hikeId")
+                },
+                onLogout = {
+                    navController.navigate(AppDestinations.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

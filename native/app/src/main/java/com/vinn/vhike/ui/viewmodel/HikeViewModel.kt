@@ -8,20 +8,26 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
+import com.vinn.vhike.data.UserSession
+import com.vinn.vhike.data.api.WeatherService
 import com.vinn.vhike.data.db.Hike
 import com.vinn.vhike.data.db.Observation
 import com.vinn.vhike.data.repository.GitHubRepository
 import com.vinn.vhike.data.repository.HikeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
@@ -29,10 +35,21 @@ import javax.inject.Inject
 @HiltViewModel
 class HikeViewModel @Inject constructor(
     private val hikeRepository: HikeRepository,
-    private val gitHubRepository: GitHubRepository
+    private val gitHubRepository: GitHubRepository,
+    private val weatherService: WeatherService,
+    private val userSession: UserSession
 ) : ViewModel() {
 
-    val allHikes: Flow<List<Hike>> = hikeRepository.allHikes
+    private val _currentUserId = MutableStateFlow(userSession.currentUserId)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allHikes: Flow<List<Hike>> = _currentUserId.flatMapLatest { userId ->
+        if (userId != null) {
+            hikeRepository.getHikesForUser(userId)
+        } else {
+            flowOf(emptyList())
+        }
+    }
 
     private val _addHikeUiState = MutableStateFlow(AddHikeFormState())
     val addHikeUiState: StateFlow<AddHikeFormState> = _addHikeUiState.asStateFlow()
@@ -49,6 +66,15 @@ class HikeViewModel @Inject constructor(
     private val _addObservationUiState = MutableStateFlow(AddObservationFormState())
     val addObservationUiState: StateFlow<AddObservationFormState> = _addObservationUiState.asStateFlow()
 
+    fun refreshUserSession() {
+        _currentUserId.value = userSession.currentUserId
+    }
+
+    fun logout() {
+        userSession.logout()
+        _currentUserId.value = null
+    }
+
     // --- Hike Form Functions ---
     fun onHikeNameChanged(name: String) {
         _addHikeUiState.value = _addHikeUiState.value.copy(hikeName = name, errorMessage = null)
@@ -61,6 +87,11 @@ class HikeViewModel @Inject constructor(
     }
     fun onDateSelected(date: Date) {
         _addHikeUiState.value = _addHikeUiState.value.copy(hikeDate = date, errorMessage = null)
+        val lat = _addHikeUiState.value.latitude
+        val long = _addHikeUiState.value.longitude
+        if (lat != null && long != null) {
+            fetchWeather(lat, long, date)
+        }
     }
     fun onLengthChanged(length: String) {
         val lengthAsDouble = length.toDoubleOrNull()
@@ -106,6 +137,7 @@ class HikeViewModel @Inject constructor(
                     longitude = latLng.longitude,
                     errorMessage = null
                 )
+                fetchWeather(latLng.latitude, latLng.longitude, _addHikeUiState.value.hikeDate)
             }
         }
     }
@@ -149,7 +181,7 @@ class HikeViewModel @Inject constructor(
 
     fun saveHike() {
         val currentState = _addHikeUiState.value
-        // ... (validation logic) ...
+
         if (currentState.hikeName.isBlank() || currentState.location.isBlank()) {
             _addHikeUiState.value = currentState.copy(errorMessage = "Name and Location are required.")
             return
@@ -164,9 +196,16 @@ class HikeViewModel @Inject constructor(
         }
         val elevationAsDouble = currentState.elevation.toDoubleOrNull()
 
+        val currentUserId = userSession.currentUserId
+        if (currentUserId == null) {
+            _addHikeUiState.value = currentState.copy(errorMessage = "User not logged in.")
+            return
+        }
+
         viewModelScope.launch {
             val hikeToSave = Hike(
                 id = currentState.hikeId ?: 0L,
+                userId = currentUserId,
                 hikeName = currentState.hikeName,
                 location = currentState.location,
                 hikeDate = currentState.hikeDate,
@@ -222,8 +261,10 @@ class HikeViewModel @Inject constructor(
 
     fun executeSearch() {
         val filters = _searchFilterState.value
+        val userId = userSession.currentUserId ?: return
         viewModelScope.launch {
             hikeRepository.performSearch(
+                userId = userId,
                 name = filters.name,
                 location = filters.location,
                 date = filters.selectedDate,
@@ -388,6 +429,66 @@ class HikeViewModel @Inject constructor(
             hikeRepository.removeObservation(observation)
         }
     }
+
+    private val _weatherState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
+    val weatherState = _weatherState.asStateFlow()
+
+    fun fetchWeather(lat: Double, long: Double, date: Date?) {
+        viewModelScope.launch {
+            try {
+                _weatherState.value = WeatherUiState.Loading
+
+                // Format date if available
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val dateString = date?.let { dateFormat.format(it) }
+
+                if (dateString != null) {
+                    // Fetch specific date weather
+                    val response = weatherService.getWeather(
+                        lat = lat,
+                        long = long,
+                        startDate = dateString,
+                        endDate = dateString,
+                        daily = "weathercode,temperature_2m_max,windspeed_10m_max",
+                        current = false
+                    )
+
+                    // Use the Daily data
+                    if (response.daily != null && response.daily.time.isNotEmpty()) {
+                        _weatherState.value = WeatherUiState.Success(
+                            temp = response.daily.temperature_2m_max[0],
+                            wind = response.daily.windspeed_10m_max[0],
+                            code = response.daily.weathercode[0]
+                        )
+                    } else {
+                        _weatherState.value = WeatherUiState.Error
+                    }
+                } else {
+                    // Fallback to current weather (default behavior)
+                    val response = weatherService.getWeather(lat, long)
+                    val current = response.current_weather
+                    if (current != null) {
+                        _weatherState.value = WeatherUiState.Success(
+                            temp = current.temperature,
+                            wind = current.windspeed,
+                            code = current.weathercode
+                        )
+                    } else {
+                        _weatherState.value = WeatherUiState.Error
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _weatherState.value = WeatherUiState.Error
+            }
+        }
+    }
+}
+
+sealed class WeatherUiState {
+    object Loading : WeatherUiState()
+    object Error : WeatherUiState()
+    data class Success(val temp: Double, val wind: Double, val code: Int) : WeatherUiState()
 }
 
 data class AddHikeFormState(
