@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +60,8 @@ fun AddHikeScreen(
 
     val savedHikeId by viewModel.savedHikeId.collectAsState()
 
+    var isInitialized by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(savedHikeId) {
         savedHikeId?.let { id ->
             onHikeSaved(id)
@@ -67,12 +70,13 @@ fun AddHikeScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (hikeIdToEdit != null) {
-            viewModel.loadHikeForEditing(hikeIdToEdit)
-        } else {
-            if (viewModel.addHikeUiState.value.hikeName.isBlank()) {
+        if (!isInitialized) {
+            if (hikeIdToEdit != null) {
+                viewModel.loadHikeForEditing(hikeIdToEdit)
+            } else {
                 viewModel.resetAddHikeForm()
             }
+            isInitialized = true
         }
     }
 
@@ -80,8 +84,16 @@ fun AddHikeScreen(
         navBackStackEntry.savedStateHandle.getLiveData<LatLng>("pickedLocation")
             .observe(navBackStackEntry) { latLng ->
                 if (latLng != null) {
-                    viewModel.onLocationSelectedFromMap(latLng, context)
+                    val pickedAddress = navBackStackEntry.savedStateHandle.get<String>("pickedAddress")
+
+                    if (!pickedAddress.isNullOrBlank()) {
+                        viewModel.onLocationConfirmed(latLng, pickedAddress)
+                    } else {
+                        viewModel.onLocationSelectedFromMap(latLng, context)
+                    }
+
                     navBackStackEntry.savedStateHandle.remove<LatLng>("pickedLocation")
+                    navBackStackEntry.savedStateHandle.remove<String>("pickedAddress")
                 }
             }
     }
@@ -89,7 +101,7 @@ fun AddHikeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditing) "Edit Hike" else "Add a New Hike") }, // Dynamic title
+                title = { Text(if (isEditing) "Edit Hike" else "Add a New Hike") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -218,7 +230,6 @@ fun AddHikeScreen(
                     onTimeSelected = { viewModel.onDurationChanged(it) },
                     modifier = Modifier.weight(1f)
                 )
-                // NEW: Elevation Field
                 FormTextField(
                     label = "Elevation (ft)",
                     placeholder = "e.g. 2425",
@@ -268,7 +279,7 @@ fun FormTextField(
     modifier: Modifier = Modifier,
     singleLine: Boolean = true,
     readOnly: Boolean = false,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default, // MODIFIED
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column(modifier = modifier.padding(vertical = 8.dp)) {
@@ -292,7 +303,7 @@ fun FormTextField(
             singleLine = singleLine,
             readOnly = readOnly,
             trailingIcon = trailingIcon,
-            keyboardOptions = keyboardOptions // MODIFIED
+            keyboardOptions = keyboardOptions
         )
     }
 }

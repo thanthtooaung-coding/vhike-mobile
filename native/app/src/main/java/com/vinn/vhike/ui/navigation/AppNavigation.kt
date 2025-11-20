@@ -108,10 +108,15 @@ fun AppNavigation(navController: NavHostController) {
         composable(AppDestinations.MAP_PICKER) {
             MapPickerScreen (
                 onNavigateBack = { navController.popBackStack() },
-                onLocationSelected = { latLng ->
+                onLocationSelected = { latLng, address ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("pickedAddress", address)
+
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("pickedLocation", latLng)
+
                     navController.popBackStack()
                 }
             )

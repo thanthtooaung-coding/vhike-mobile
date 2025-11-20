@@ -110,6 +110,15 @@ class HikeViewModel @Inject constructor(
         }
     }
 
+    fun onLocationConfirmed(latLng: LatLng, addressName: String) {
+        _addHikeUiState.value = _addHikeUiState.value.copy(
+            location = addressName,
+            latitude = latLng.latitude,
+            longitude = latLng.longitude,
+            errorMessage = null
+        )
+    }
+
     fun loadHikeForEditing(hikeId: Long) {
         viewModelScope.launch {
             val hike = hikeRepository.getHikeDetails(hikeId).firstOrNull()
