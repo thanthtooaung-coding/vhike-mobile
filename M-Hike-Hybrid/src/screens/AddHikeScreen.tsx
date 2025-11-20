@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import {MaterialIcons} from '@expo/vector-icons';
 import {RootStackParamList, AddHikeFormState} from '../types';
 import {useAppContext} from '../context/AppContext';
+import {useAuth} from '../context/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type AddHikeRouteProp = RouteProp<RootStackParamList, 'AddHike'>;
@@ -27,6 +28,7 @@ const AddHikeScreen: React.FC = () => {
   const route = useRoute<AddHikeRouteProp>();
   const {addHike, updateHike, getHikeById, addHikeFormState, setAddHikeFormState} =
     useAppContext();
+  const {currentUser} = useAuth();
   const [formState, setFormState] = useState<AddHikeFormState>(addHikeFormState);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -90,6 +92,10 @@ const AddHikeScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (!currentUser) {
+      Alert.alert('Error', 'You must be logged in to save a hike.');
+      return;
+    }
     if (!formState.hikeName.trim() || !formState.location.trim()) {
       Alert.alert('Error', 'Name and Location are required.');
       return;
@@ -102,6 +108,10 @@ const AddHikeScreen: React.FC = () => {
       Alert.alert('Error', 'Please enter a valid length.');
       return;
     }
+    if (!formState.duration || !formState.duration.trim()) {
+      Alert.alert('Error', 'Please enter a duration.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -110,17 +120,17 @@ const AddHikeScreen: React.FC = () => {
         : undefined;
 
       const hikeData = {
-        hikeName: formState.hikeName,
-        location: formState.location,
+        hikeName: formState.hikeName.trim(),
+        location: formState.location.trim(),
         hikeDate: formState.hikeDate!,
         parkingAvailable: formState.parkingAvailable,
         hikeLength: formState.hikeLength,
         difficultyLevel: formState.difficultyLevel,
         trailType: formState.trailType,
-        description: formState.description || undefined,
-        latitude: formState.latitude,
-        longitude: formState.longitude,
-        duration: formState.duration,
+        description: formState.description?.trim() || undefined,
+        latitude: formState.latitude ?? undefined,
+        longitude: formState.longitude ?? undefined,
+        duration: formState.duration.trim(),
         elevation: elevationAsNumber,
       };
 
@@ -138,7 +148,8 @@ const AddHikeScreen: React.FC = () => {
         });
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to save hike. Please try again.');
+      console.error('Error saving hike:', error);
+      Alert.alert('Error', `Failed to save hike. ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setLoading(false);
     }

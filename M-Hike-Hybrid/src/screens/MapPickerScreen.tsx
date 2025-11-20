@@ -108,11 +108,16 @@ const MapPickerScreen: React.FC = () => {
       return;
     }
 
+    let finalAddress = addressText;
+    if (!finalAddress || finalAddress.trim() === '' || finalAddress === 'Fetching address...') {
+      finalAddress = `${selectedLocation.latitude.toFixed(6)}, ${selectedLocation.longitude.toFixed(6)}`;
+    }
+
     navigation.navigate('AddHike', {
       pickedLocation: {
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
-        location: addressText,
+        location: finalAddress.trim(),
       },
     });
   };

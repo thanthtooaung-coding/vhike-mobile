@@ -67,6 +67,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({children}) => {
     const initDatabase = async () => {
       await database.init();
       
+      const {seedDatabase} = await import('../database/seedData');
+      await seedDatabase();
+      
       const token = '';
       const owner = '';
       const repo = '';

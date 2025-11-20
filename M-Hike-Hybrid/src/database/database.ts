@@ -5,31 +5,42 @@ const database_name = 'm_hike_database.db';
 
 export class Database {
   private db: SQLite.SQLiteDatabase | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
     if (this.db) {
       return;
     }
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    this.initPromise = this._init();
+    return this.initPromise;
+  }
+
+  private async _init(): Promise<void> {
     try {
       this.db = await SQLite.openDatabaseAsync(database_name);
       await this.createTables();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('already exists')) {
+        console.log('Tables already exist, skipping creation');
+        this.initPromise = null;
+        return;
+      }
       console.error('Database initialization error:', error);
+      this.initPromise = null;
       throw error;
     }
+    this.initPromise = null;
   }
 
   private async createTables(): Promise<void> {
     if (!this.db) return;
 
-    const dropTables = `
-      DROP TABLE IF EXISTS observation_log;
-      DROP TABLE IF EXISTS hike_registry;
-      DROP TABLE IF EXISTS users;
-    `;
-
     const createUserTable = `
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fullName TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
@@ -38,7 +49,7 @@ export class Database {
     `;
 
     const createHikeTable = `
-      CREATE TABLE hike_registry (
+      CREATE TABLE IF NOT EXISTS hike_registry (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER NOT NULL,
         hikeName TEXT NOT NULL,
@@ -58,15 +69,15 @@ export class Database {
     `;
 
     const createUserIndex = `
-      CREATE INDEX idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `;
 
     const createHikeUserIndex = `
-      CREATE INDEX idx_hike_userId ON hike_registry(userId);
+      CREATE INDEX IF NOT EXISTS idx_hike_userId ON hike_registry(userId);
     `;
 
     const createObservationTable = `
-      CREATE TABLE observation_log (
+      CREATE TABLE IF NOT EXISTS observation_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         hikeId INTEGER NOT NULL,
         observationText TEXT NOT NULL,
@@ -80,16 +91,25 @@ export class Database {
     `;
 
     const createIndex = `
-      CREATE INDEX idx_observation_hikeId ON observation_log(hikeId);
+      CREATE INDEX IF NOT EXISTS idx_observation_hikeId ON observation_log(hikeId);
     `;
 
-    await this.db.execAsync(dropTables);
-    await this.db.execAsync(createUserTable);
-    await this.db.execAsync(createHikeTable);
-    await this.db.execAsync(createObservationTable);
-    await this.db.execAsync(createUserIndex);
-    await this.db.execAsync(createHikeUserIndex);
-    await this.db.execAsync(createIndex);
+    try {
+      await this.db.execAsync(createUserTable);
+      await this.db.execAsync(createHikeTable);
+      await this.db.execAsync(createObservationTable);
+      await this.db.execAsync(createUserIndex);
+      await this.db.execAsync(createHikeUserIndex);
+      await this.db.execAsync(createIndex);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('already exists')) {
+        console.log('Tables already exist, skipping creation');
+        return;
+      }
+      console.error('Error creating tables:', error);
+      throw error;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
@@ -166,31 +186,73 @@ export class Database {
 
   async insertHike(hike: Omit<Hike, 'id'>): Promise<number> {
     if (!this.db) throw new Error('Database not initialized');
-    const result = await this.db.runAsync(
-      `INSERT INTO hike_registry 
-       (userId, hikeName, location, hikeDate, parkingAvailable, hikeLength, difficultyLevel, trailType, description, latitude, longitude, duration, elevation)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        hike.userId,
-        hike.hikeName,
-        hike.location,
-        hike.hikeDate.getTime(),
-        hike.parkingAvailable ? 1 : 0,
-        hike.hikeLength,
-        hike.difficultyLevel,
-        hike.trailType,
-        hike.description || null,
-        hike.latitude || null,
-        hike.longitude || null,
-        hike.duration,
-        hike.elevation || null,
-      ]
-    );
-    return result.lastInsertRowId;
+    if (!hike.userId || hike.userId <= 0) {
+      throw new Error('User ID is required');
+    }
+    if (!hike.duration || !hike.duration.trim()) {
+      throw new Error('Duration is required');
+    }
+    if (!hike.hikeName || !hike.hikeName.trim()) {
+      throw new Error('Hike name is required');
+    }
+    if (!hike.location || !hike.location.trim()) {
+      throw new Error('Location is required');
+    }
+    if (!hike.hikeDate || !(hike.hikeDate instanceof Date) || isNaN(hike.hikeDate.getTime())) {
+      throw new Error('Hike date is required and must be a valid date');
+    }
+    if (!hike.hikeLength || hike.hikeLength <= 0) {
+      throw new Error('Hike length is required and must be greater than 0');
+    }
+    if (!hike.difficultyLevel || !hike.difficultyLevel.trim()) {
+      throw new Error('Difficulty level is required');
+    }
+    if (!hike.trailType || !hike.trailType.trim()) {
+      throw new Error('Trail type is required');
+    }
+    
+    try {
+      const result = await this.db.runAsync(
+        `INSERT INTO hike_registry 
+         (userId, hikeName, location, hikeDate, parkingAvailable, hikeLength, difficultyLevel, trailType, description, latitude, longitude, duration, elevation)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          hike.userId,
+          hike.hikeName.trim(),
+          hike.location.trim(),
+          hike.hikeDate.getTime(),
+          hike.parkingAvailable ? 1 : 0,
+          hike.hikeLength,
+          hike.difficultyLevel.trim(),
+          hike.trailType.trim(),
+          hike.description?.trim() || null,
+          hike.latitude != null ? hike.latitude : null,
+          hike.longitude != null ? hike.longitude : null,
+          hike.duration.trim(),
+          hike.elevation != null ? hike.elevation : null,
+        ]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Database insert error:', error);
+      console.error('Hike data:', {
+        userId: hike.userId,
+        hikeName: hike.hikeName,
+        location: hike.location,
+        hikeDate: hike.hikeDate,
+        duration: hike.duration,
+        difficultyLevel: hike.difficultyLevel,
+        trailType: hike.trailType,
+      });
+      throw error;
+    }
   }
 
   async updateHike(hike: Hike): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
+    if (!hike.duration || !hike.duration.trim()) {
+      throw new Error('Duration is required');
+    }
     await this.db.runAsync(
       `UPDATE hike_registry 
        SET userId = ?, hikeName = ?, location = ?, hikeDate = ?, parkingAvailable = ?, hikeLength = ?, 
@@ -209,7 +271,7 @@ export class Database {
         hike.description || null,
         hike.latitude || null,
         hike.longitude || null,
-        hike.duration,
+        hike.duration.trim(),
         hike.elevation || null,
         hike.id,
       ]
