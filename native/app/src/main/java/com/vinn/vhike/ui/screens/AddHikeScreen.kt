@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
@@ -148,20 +149,14 @@ fun AddHikeScreen(
                 .verticalScroll(scrollState)
                 .background(Color.White)
         ) {
-            if (uiState.errorMessage != null) {
-                Text(
-                    text = uiState.errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
 
             // --- Name of hike ---
             FormTextField(
                 label = "Name of hike",
                 placeholder = "e.g. Eagle Peak Trail",
                 value = uiState.hikeName,
-                onValueChange = { viewModel.onHikeNameChanged(it) }
+                onValueChange = { viewModel.onHikeNameChanged(it) },
+                errorText = uiState.nameError
             )
 
             // --- Location ---
@@ -170,6 +165,7 @@ fun AddHikeScreen(
                 placeholder = "Search or select on map",
                 value = uiState.location,
                 onValueChange = { viewModel.onLocationChanged(it) },
+                errorText = uiState.locationError,
                 trailingIcon = {
                     IconButton(onClick = onNavigateToMap) {
                         Icon(Icons.Default.LocationOn, contentDescription = "Select on Map")
@@ -181,6 +177,7 @@ fun AddHikeScreen(
             DatePickerField(
                 label = "Date of the hike",
                 selectedDate = uiState.hikeDate,
+                errorText = uiState.dateError,
                 onDateSelected = { viewModel.onDateSelected(it) }
             )
 
@@ -208,7 +205,11 @@ fun AddHikeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .border(1.dp, LightGray, RoundedCornerShape(12.dp))
+                        .border(
+                            width = 1.dp,
+                            color = if (uiState.lengthError != null) MaterialTheme.colorScheme.error else LightGray,
+                            shape = RoundedCornerShape(12.dp)
+                        )
                 ) {
                     OutlinedTextField(
                         value = uiState.hikeLength?.toString() ?: "",
@@ -219,13 +220,23 @@ fun AddHikeScreen(
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             containerColor = Color.Transparent,
                             unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent
-                        )
+                            focusedBorderColor = Color.Transparent,
+                            errorBorderColor = Color.Transparent
+                        ),
+                        isError = uiState.lengthError != null
                     )
                     // Unit Toggle (mi/km)
                     UnitToggle(
                         selectedUnit = uiState.lengthUnit,
                         onUnitChange = { viewModel.onLengthUnitChanged(it) }
+                    )
+                }
+                if (uiState.lengthError != null) {
+                    Text(
+                        text = uiState.lengthError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
                     )
                 }
             }
@@ -291,13 +302,14 @@ fun FormTextField(
     singleLine: Boolean = true,
     readOnly: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    trailingIcon: @Composable (() -> Unit)? = null
+    trailingIcon: @Composable (() -> Unit)? = null,
+    errorText: String? = null // NEW Parameter
 ) {
     Column(modifier = modifier.padding(vertical = 8.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.DarkGray,
+            color = if (errorText != null) MaterialTheme.colorScheme.error else Color.DarkGray,
             modifier = Modifier.padding(bottom = 4.dp)
         )
         OutlinedTextField(
@@ -309,12 +321,32 @@ fun FormTextField(
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 containerColor = LightGray,
                 unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = AppTeal
+                focusedBorderColor = AppTeal,
+                errorBorderColor = MaterialTheme.colorScheme.error // Red border on error
             ),
             singleLine = singleLine,
             readOnly = readOnly,
-            trailingIcon = trailingIcon,
-            keyboardOptions = keyboardOptions
+            keyboardOptions = keyboardOptions,
+            isError = errorText != null, // Trigger error state
+            trailingIcon = {
+                // FIX: Check for custom trailingIcon (Map/Timer) FIRST
+                if (trailingIcon != null) {
+                    trailingIcon()
+                } else if (errorText != null) {
+                    // Only show Error icon if there is no custom icon
+                    Icon(Icons.Default.Error, "Error", tint = MaterialTheme.colorScheme.error)
+                }
+            },
+            // Display Error Text below field
+            supportingText = {
+                if (errorText != null) {
+                    Text(
+                        text = errorText,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
         )
     }
 }
@@ -324,6 +356,7 @@ fun FormTextField(
 fun DatePickerField(
     label: String,
     selectedDate: Date?,
+    errorText: String? = null,
     onDateSelected: (Date) -> Unit
 ) {
     val context = LocalContext.current
@@ -355,7 +388,7 @@ fun DatePickerField(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.DarkGray,
+            color = if (errorText != null) MaterialTheme.colorScheme.error else Color.DarkGray,
             modifier = Modifier.padding(bottom = 4.dp)
         )
         OutlinedTextField(
@@ -374,12 +407,29 @@ fun DatePickerField(
                 disabledBorderColor = Color.Transparent,
                 disabledPlaceholderColor = Color.Gray,
                 disabledLeadingIconColor = LocalContentColor.current.copy(LocalContentColor.current.alpha),
-                disabledTrailingIconColor = LocalContentColor.current.copy(LocalContentColor.current.alpha)
+                disabledTrailingIconColor = LocalContentColor.current.copy(LocalContentColor.current.alpha),
+                errorBorderColor = MaterialTheme.colorScheme.error
             ),
             readOnly = true,
             enabled = false,
+            isError = errorText != null,
             trailingIcon = {
-                Icon(Icons.Default.CalendarToday, "Select Date")
+                // FIX: Always show the Calendar icon, even if there is an error
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = "Select Date",
+                    // Optional: tint it red if there is an error, or keep it standard
+                    tint = if (errorText != null) MaterialTheme.colorScheme.error else LocalContentColor.current
+                )
+            },
+            supportingText = {
+                if (errorText != null) {
+                    Text(
+                        text = errorText,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         )
     }

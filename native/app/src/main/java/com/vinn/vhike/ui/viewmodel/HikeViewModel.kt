@@ -92,17 +92,27 @@ class HikeViewModel @Inject constructor(
     }
 
     // --- Hike Form Functions ---
+    // FIXED: Updated to clear specific errors instead of 'errorMessage'
     fun onHikeNameChanged(name: String) {
-        _addHikeUiState.value = _addHikeUiState.value.copy(hikeName = name, errorMessage = null)
+        _addHikeUiState.value = _addHikeUiState.value.copy(
+            hikeName = name,
+            nameError = null
+        )
     }
     fun onLocationChanged(location: String) {
-        _addHikeUiState.value = _addHikeUiState.value.copy(location = location, errorMessage = null)
+        _addHikeUiState.value = _addHikeUiState.value.copy(
+            location = location,
+            locationError = null
+        )
     }
     fun onDescriptionChanged(description: String) {
         _addHikeUiState.value = _addHikeUiState.value.copy(description = description)
     }
     fun onDateSelected(date: Date) {
-        _addHikeUiState.value = _addHikeUiState.value.copy(hikeDate = date, errorMessage = null)
+        _addHikeUiState.value = _addHikeUiState.value.copy(
+            hikeDate = date,
+            dateError = null
+        )
         val lat = _addHikeUiState.value.latitude
         val long = _addHikeUiState.value.longitude
         if (lat != null && long != null) {
@@ -111,7 +121,10 @@ class HikeViewModel @Inject constructor(
     }
     fun onLengthChanged(length: String) {
         val lengthAsDouble = length.toDoubleOrNull()
-        _addHikeUiState.value = _addHikeUiState.value.copy(hikeLength = lengthAsDouble, errorMessage = null)
+        _addHikeUiState.value = _addHikeUiState.value.copy(
+            hikeLength = lengthAsDouble,
+            lengthError = null
+        )
     }
     fun onLengthUnitChanged(unit: String) {
         _addHikeUiState.value = _addHikeUiState.value.copy(lengthUnit = unit)
@@ -151,7 +164,7 @@ class HikeViewModel @Inject constructor(
                     location = locationName,
                     latitude = latLng.latitude,
                     longitude = latLng.longitude,
-                    errorMessage = null
+                    locationError = null // Clear error
                 )
                 fetchWeather(latLng.latitude, latLng.longitude, _addHikeUiState.value.hikeDate)
             }
@@ -163,7 +176,7 @@ class HikeViewModel @Inject constructor(
             location = addressName,
             latitude = latLng.latitude,
             longitude = latLng.longitude,
-            errorMessage = null
+            locationError = null
         )
     }
 
@@ -184,9 +197,12 @@ class HikeViewModel @Inject constructor(
                     parkingAvailable = hike.parkingAvailable,
                     trailType = hike.trailType,
                     latitude = hike.latitude,
-                    longitude = hike.longitude,
-                    errorMessage = null
+                    longitude = hike.longitude
                 )
+                // Fetch weather if editing
+                if (hike.latitude != null && hike.longitude != null) {
+                    fetchWeather(hike.latitude, hike.longitude, hike.hikeDate)
+                }
             }
         }
     }
@@ -197,24 +213,53 @@ class HikeViewModel @Inject constructor(
 
     fun saveHike() {
         val currentState = _addHikeUiState.value
+        var hasError = false
 
-        if (currentState.hikeName.isBlank() || currentState.location.isBlank()) {
-            _addHikeUiState.value = currentState.copy(errorMessage = "Name and Location are required.")
-            return
+        // Local error variables
+        var nameError: String? = null
+        var locationError: String? = null
+        var dateError: String? = null
+        var lengthError: String? = null
+
+        // Validate Name
+        if (currentState.hikeName.isBlank()) {
+            nameError = "Name is required"
+            hasError = true
         }
+
+        // Validate Location
+        if (currentState.location.isBlank()) {
+            locationError = "Location is required"
+            hasError = true
+        }
+
+        // Validate Date
         if (currentState.hikeDate == null) {
-            _addHikeUiState.value = currentState.copy(errorMessage = "Please select a date.")
-            return
+            dateError = "Date is required"
+            hasError = true
         }
+
+        // Validate Length
         if (currentState.hikeLength == null || currentState.hikeLength <= 0.0) {
-            _addHikeUiState.value = currentState.copy(errorMessage = "Please enter a valid length.")
+            lengthError = "Valid length required"
+            hasError = true
+        }
+
+        // If errors exist, update state and stop
+        if (hasError) {
+            _addHikeUiState.value = currentState.copy(
+                nameError = nameError,
+                locationError = locationError,
+                dateError = dateError,
+                lengthError = lengthError
+            )
             return
         }
+
         val elevationAsDouble = currentState.elevation.toDoubleOrNull()
 
         val currentUserId = userSession.currentUserId
         if (currentUserId == null) {
-            _addHikeUiState.value = currentState.copy(errorMessage = "User not logged in.")
             return
         }
 
@@ -224,9 +269,9 @@ class HikeViewModel @Inject constructor(
                 userId = currentUserId,
                 hikeName = currentState.hikeName,
                 location = currentState.location,
-                hikeDate = currentState.hikeDate,
+                hikeDate = currentState.hikeDate!!,
                 parkingAvailable = currentState.parkingAvailable,
-                hikeLength = currentState.hikeLength,
+                hikeLength = currentState.hikeLength!!,
                 difficultyLevel = currentState.difficultyLevel,
                 trailType = currentState.trailType,
                 description = currentState.description,
@@ -751,7 +796,10 @@ data class AddHikeFormState(
     val trailType: String = "Loop",
     val latitude: Double? = null,
     val longitude: Double? = null,
-    val errorMessage: String? = null
+    val nameError: String? = null,
+    val locationError: String? = null,
+    val dateError: String? = null,
+    val lengthError: String? = null
 )
 
 data class SearchFilters(
