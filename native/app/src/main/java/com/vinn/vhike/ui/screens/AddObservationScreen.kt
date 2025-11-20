@@ -109,28 +109,10 @@ fun AddObservationScreen(
         }
     }
 
-    /*LaunchedEffect(hasLocationPermission, uiState.latitude) {
-        if (hasLocationPermission && uiState.latitude == null) {
-            if (ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                    if (location != null) {
-                        viewModel.onObservationLocationSet(LatLng(location.latitude, location.longitude))
-                    }
-                }
-            }
-        }
-    }*/
-
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            // Call the ViewModel function when an image is selected
             viewModel.uploadObservationPhoto(it, context)
         }
     }
@@ -300,14 +282,6 @@ fun AddObservationScreen(
                         Marker(state = MarkerState(observationLocation), title = "Observation Location")
                     }
                 }
-
-                /*val locationText = if (observationLocation != null) {
-                    "Location: ${String.format("%.4f", observationLocation.latitude)}, ${String.format("%.4f", observationLocation.longitude)}"
-                } else if (hasLocationPermission) {
-                    "Getting location... (Tap map to set)"
-                } else {
-                    "Location permission denied. (Tap map to set)"
-                }*/
 
                 val locationText = if (observationLocation != null) {
                     "Location: ${String.format("%.4f", observationLocation.latitude)}, ${String.format("%.4f", observationLocation.longitude)}"

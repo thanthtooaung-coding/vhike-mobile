@@ -150,7 +150,6 @@ fun AddHikeScreen(
                 .background(Color.White)
         ) {
 
-            // --- Name of hike ---
             FormTextField(
                 label = "Name of hike",
                 placeholder = "e.g. Eagle Peak Trail",
@@ -159,7 +158,6 @@ fun AddHikeScreen(
                 errorText = uiState.nameError
             )
 
-            // --- Location ---
             FormTextField(
                 label = "Location",
                 placeholder = "Search or select on map",
@@ -173,7 +171,6 @@ fun AddHikeScreen(
                 }
             )
 
-            // --- Date of the hike ---
             DatePickerField(
                 label = "Date of the hike",
                 selectedDate = uiState.hikeDate,
@@ -183,7 +180,6 @@ fun AddHikeScreen(
 
             WeatherWidget(state = weatherState)
 
-            // --- Description ---
             FormTextField(
                 label = "Description",
                 placeholder = "Share some details about the hike...",
@@ -193,7 +189,6 @@ fun AddHikeScreen(
                 modifier = Modifier.height(120.dp)
             )
 
-            // --- Length (Full Width) ---
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 Text(
                     text = "Length",
@@ -225,7 +220,6 @@ fun AddHikeScreen(
                         ),
                         isError = uiState.lengthError != null
                     )
-                    // Unit Toggle (mi/km)
                     UnitToggle(
                         selectedUnit = uiState.lengthUnit,
                         onUnitChange = { viewModel.onLengthUnitChanged(it) }
@@ -241,7 +235,6 @@ fun AddHikeScreen(
                 }
             }
 
-            // --- Duration & Elevation ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -263,7 +256,6 @@ fun AddHikeScreen(
                 )
             }
 
-            // --- Level of difficulty ---
             DropdownField(
                 label = "Level of difficulty",
                 options = listOf("Easy", "Moderate", "Difficult"),
@@ -271,14 +263,12 @@ fun AddHikeScreen(
                 onValueSelected = { viewModel.onDifficultyChanged(it) }
             )
 
-            // --- Parking available ---
             SettingSwitch(
                 text = "Parking available",
                 isChecked = uiState.parkingAvailable,
                 onCheckedChange = { viewModel.onParkingChanged(it) }
             )
 
-            // --- Trail Type ---
             RadioGroupField(
                 label = "Trail Type",
                 options = listOf("Loop", "Out & Back", "Multi-day"),
@@ -303,7 +293,7 @@ fun FormTextField(
     readOnly: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     trailingIcon: @Composable (() -> Unit)? = null,
-    errorText: String? = null // NEW Parameter
+    errorText: String? = null
 ) {
     Column(modifier = modifier.padding(vertical = 8.dp)) {
         Text(
@@ -322,22 +312,19 @@ fun FormTextField(
                 containerColor = LightGray,
                 unfocusedBorderColor = Color.Transparent,
                 focusedBorderColor = AppTeal,
-                errorBorderColor = MaterialTheme.colorScheme.error // Red border on error
+                errorBorderColor = MaterialTheme.colorScheme.error
             ),
             singleLine = singleLine,
             readOnly = readOnly,
             keyboardOptions = keyboardOptions,
-            isError = errorText != null, // Trigger error state
+            isError = errorText != null,
             trailingIcon = {
-                // FIX: Check for custom trailingIcon (Map/Timer) FIRST
                 if (trailingIcon != null) {
                     trailingIcon()
                 } else if (errorText != null) {
-                    // Only show Error icon if there is no custom icon
                     Icon(Icons.Default.Error, "Error", tint = MaterialTheme.colorScheme.error)
                 }
             },
-            // Display Error Text below field
             supportingText = {
                 if (errorText != null) {
                     Text(
@@ -414,11 +401,9 @@ fun DatePickerField(
             enabled = false,
             isError = errorText != null,
             trailingIcon = {
-                // FIX: Always show the Calendar icon, even if there is an error
                 Icon(
                     imageVector = Icons.Default.CalendarToday,
                     contentDescription = "Select Date",
-                    // Optional: tint it red if there is an error, or keep it standard
                     tint = if (errorText != null) MaterialTheme.colorScheme.error else LocalContentColor.current
                 )
             },

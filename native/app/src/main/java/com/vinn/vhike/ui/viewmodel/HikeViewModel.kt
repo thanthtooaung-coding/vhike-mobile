@@ -91,8 +91,6 @@ class HikeViewModel @Inject constructor(
         _currentUserId.value = null
     }
 
-    // --- Hike Form Functions ---
-    // FIXED: Updated to clear specific errors instead of 'errorMessage'
     fun onHikeNameChanged(name: String) {
         _addHikeUiState.value = _addHikeUiState.value.copy(
             hikeName = name,
@@ -199,7 +197,6 @@ class HikeViewModel @Inject constructor(
                     latitude = hike.latitude,
                     longitude = hike.longitude
                 )
-                // Fetch weather if editing
                 if (hike.latitude != null && hike.longitude != null) {
                     fetchWeather(hike.latitude, hike.longitude, hike.hikeDate)
                 }
@@ -215,37 +212,31 @@ class HikeViewModel @Inject constructor(
         val currentState = _addHikeUiState.value
         var hasError = false
 
-        // Local error variables
         var nameError: String? = null
         var locationError: String? = null
         var dateError: String? = null
         var lengthError: String? = null
 
-        // Validate Name
         if (currentState.hikeName.isBlank()) {
             nameError = "Name is required"
             hasError = true
         }
 
-        // Validate Location
         if (currentState.location.isBlank()) {
             locationError = "Location is required"
             hasError = true
         }
 
-        // Validate Date
         if (currentState.hikeDate == null) {
             dateError = "Date is required"
             hasError = true
         }
 
-        // Validate Length
         if (currentState.hikeLength == null || currentState.hikeLength <= 0.0) {
             lengthError = "Valid length required"
             hasError = true
         }
 
-        // If errors exist, update state and stop
         if (hasError) {
             _addHikeUiState.value = currentState.copy(
                 nameError = nameError,
@@ -319,7 +310,6 @@ class HikeViewModel @Inject constructor(
         _searchFilterState.value = _searchFilterState.value.copy(lengthRange = range)
     }
 
-    // NEW Search Setters
     fun onSearchDifficultyChanged(value: String) {
         _searchFilterState.value = _searchFilterState.value.copy(difficulty = value)
     }
@@ -374,7 +364,6 @@ class HikeViewModel @Inject constructor(
         _searchResultState.value = emptyList()
     }
 
-    // --- Observation Functions ---
     fun getObservationsForHike(hikeId: Long): Flow<List<Observation>> {
         return hikeRepository.getObservations(hikeId)
     }
@@ -429,7 +418,6 @@ class HikeViewModel @Inject constructor(
 
     private suspend fun readUriToBytes(uri: Uri, context: Context): Pair<String?, ByteArray?> = withContext(Dispatchers.IO) {
         try {
-            // Get filename
             var fileName: String? = null
             context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
@@ -542,12 +530,10 @@ class HikeViewModel @Inject constructor(
             try {
                 _weatherState.value = WeatherUiState.Loading
 
-                // Format date if available
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val dateString = date?.let { dateFormat.format(it) }
 
                 if (dateString != null) {
-                    // Fetch specific date weather
                     val response = weatherService.getWeather(
                         lat = lat,
                         long = long,
@@ -557,7 +543,6 @@ class HikeViewModel @Inject constructor(
                         current = false
                     )
 
-                    // Use the Daily data
                     if (response.daily != null && response.daily.time.isNotEmpty()) {
                         _weatherState.value = WeatherUiState.Success(
                             temp = response.daily.temperature_2m_max[0],
@@ -568,7 +553,6 @@ class HikeViewModel @Inject constructor(
                         _weatherState.value = WeatherUiState.Error
                     }
                 } else {
-                    // Fallback to current weather (default behavior)
                     val response = weatherService.getWeather(lat, long)
                     val current = response.current_weather
                     if (current != null) {
@@ -650,7 +634,6 @@ class HikeViewModel @Inject constructor(
             return
         }
 
-        // 2. Validation
         if (currentPass.isBlank() || newPass.isBlank() || confirmPass.isBlank()) {
             _changePasswordState.value = ChangePasswordState.Error("All fields are required")
             return
@@ -670,7 +653,6 @@ class HikeViewModel @Inject constructor(
         viewModelScope.launch {
             _changePasswordState.value = ChangePasswordState.Loading
 
-            // 3. Fetch User directly from DB (Safe way)
             val user = userDao.getUserById(userId).firstOrNull()
 
             if (user == null) {
@@ -678,13 +660,11 @@ class HikeViewModel @Inject constructor(
                 return@launch
             }
 
-            // 4. Verify Password
             if (user.passwordHash != currentPass) {
                 _changePasswordState.value = ChangePasswordState.Error("Incorrect current password")
                 return@launch
             }
 
-            // 5. Update
             val updatedUser = user.copy(passwordHash = newPass)
 
             try {
@@ -703,7 +683,6 @@ class HikeViewModel @Inject constructor(
 
     fun dismissOtpDialog() {
         _otpState.value = OtpState.Hidden
-        // If they cancel, we should probably stop the loading state too
         if (_editProfileState.value is EditProfileState.Loading) {
             _editProfileState.value = EditProfileState.Idle
         }
@@ -718,7 +697,6 @@ class HikeViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // 1. Check if email is already taken
             if (newEmail != currentUser.email) {
                 val existingUser = userDao.getUserByEmail(newEmail)
                 if (existingUser != null) {
@@ -726,25 +704,20 @@ class HikeViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 2. Generate OTP
                 actualOtp = Random.nextInt(100000, 999999).toString()
 
-                // 3. Show Loading State while sending email
                 _editProfileState.value = EditProfileState.Loading
 
-                // 4. Send Real Email
                 val isSent = EmailSender.sendOtpEmail(newEmail, actualOtp)
 
                 if (isSent) {
-                    // Email sent successfully, show dialog
-                    _editProfileState.value = EditProfileState.Idle // Stop loading spinner
+                    _editProfileState.value = EditProfileState.Idle
                     _otpState.value = OtpState.Visible
                 } else {
                     _editProfileState.value = EditProfileState.Error("Failed to send verification email. Check internet connection.")
                 }
 
             } else {
-                // Email didn't change, just update name immediately
                 finalizeProfileUpdate(newName, newEmail)
             }
         }

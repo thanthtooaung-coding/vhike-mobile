@@ -10,7 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.ExitToApp // NEW Import
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
@@ -41,21 +41,18 @@ fun SettingsScreen(
     onTermsClick: () -> Unit,
     onEditProfileClick: () -> Unit,
     onChangePasswordClick: () -> Unit,
-    onLogoutClick: () -> Unit, // NEW Parameter
+    onLogoutClick: () -> Unit,
     viewModel: HikeViewModel = hiltViewModel()
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
 
     var showResetDialog by remember { mutableStateOf(false) }
-    var showLogoutDialog by remember { mutableStateOf(false) } // NEW State
-
-    // Logout Confirmation Dialog
+    var showLogoutDialog by remember { mutableStateOf(false) }
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             title = { Text("Log Out") },
             text = { Text("Are you sure you want to log out?") },
-            // 'confirmButton' is automatically placed on the RIGHT in Material3
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -64,14 +61,11 @@ fun SettingsScreen(
                         onLogoutClick()
                     }
                 ) {
-                    // Red color indicates a destructive/disruptive action
                     Text("Log Out", color = MaterialTheme.colorScheme.error)
                 }
             },
-            // 'dismissButton' is automatically placed on the LEFT in Material3
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    // Default color (usually primary or grey) indicates safety
                     Text("Cancel")
                 }
             }
@@ -131,7 +125,6 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- ACCOUNT SECTION ---
             SectionHeader("ACCOUNT")
             SettingsGroup {
                 if (currentUser != null) {
@@ -152,12 +145,11 @@ fun SettingsScreen(
                 )
                 HorizontalDivider(color = LightGray)
 
-                // NEW: Log Out Item
                 SettingsItem(
                     icon = Icons.AutoMirrored.Filled.ExitToApp,
                     title = "Log Out",
                     iconTint = Color.Gray,
-                    textColor = Color.Red, // Make text red to indicate action
+                    textColor = Color.Red,
                     showChevron = false,
                     onClick = { showLogoutDialog = true }
                 )
@@ -165,7 +157,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- ABOUT SECTION ---
             SectionHeader("ABOUT")
             SettingsGroup {
                 SettingsItem(
@@ -191,7 +182,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- DANGER ZONE ---
             SectionHeader("DANGER ZONE", color = Color.Red)
             SettingsGroup {
                 Row(
@@ -233,8 +223,6 @@ fun SettingsScreen(
         }
     }
 }
-
-// ... UserProfileItem and other helpers remain the same ...
 
 @Composable
 fun UserProfileItem(user: User) {
@@ -302,8 +290,8 @@ fun SettingsItem(
     icon: ImageVector,
     title: String,
     value: String? = null,
-    iconTint: Color = AppTeal, // Added parameter to customize icon color
-    textColor: Color = Color.Black, // Added parameter to customize text color
+    iconTint: Color = AppTeal,
+    textColor: Color = Color.Black,
     showChevron: Boolean = true,
     onClick: () -> Unit
 ) {
@@ -318,13 +306,13 @@ fun SettingsItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(iconTint.copy(alpha = 0.1f)), // Use iconTint background
+                .background(iconTint.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = iconTint // Use iconTint
+                tint = iconTint
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
@@ -332,7 +320,7 @@ fun SettingsItem(
             text = title,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
-            color = textColor, // Use textColor
+            color = textColor,
             modifier = Modifier.weight(1f)
         )
         if (value != null) {

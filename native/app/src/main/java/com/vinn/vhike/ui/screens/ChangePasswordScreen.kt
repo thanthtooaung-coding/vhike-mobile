@@ -37,7 +37,6 @@ fun ChangePasswordScreen(
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
-    // Handle Success
     LaunchedEffect(changePasswordState) {
         if (changePasswordState is ChangePasswordState.Success) {
             onNavigateBack()

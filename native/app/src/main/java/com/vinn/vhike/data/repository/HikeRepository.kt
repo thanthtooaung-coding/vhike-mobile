@@ -61,7 +61,6 @@ class HikeRepository @Inject constructor(private val hikeDao: HikeDao) {
         )
     }
 
-    // --- Observation Operations ---
     fun getObservations(hikeId: Long): Flow<List<Observation>> {
         return hikeDao.getObservationsForHike(hikeId)
     }

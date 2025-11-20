@@ -13,7 +13,6 @@ import javax.mail.internet.MimeMessage
 
 object EmailSender {
 
-    // REPLACE THESE WITH YOUR DETAILS FOR THE DEMO
     private const val SENDER_EMAIL = "celestix118@gmail.com"
     private const val SENDER_PASSWORD = "dfbx rnsq iykn sdvt" // Not your login password!
 

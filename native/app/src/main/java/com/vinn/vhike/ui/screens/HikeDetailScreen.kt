@@ -64,13 +64,11 @@ fun HikeDetailScreen(
     val hike = allHikes.find { it.id == hikeId }
 
     var selectedTab by remember { mutableStateOf(0) }
-    // UPDATED: Renamed tab from "Map" to "Forecast"
     val tabs = listOf("Observations", "Forecast")
 
     val observations by viewModel.getObservationsForHike(hikeId)
         .collectAsState(initial = emptyList())
 
-    // NEW: Observe weather state
     val weatherState by viewModel.weatherState.collectAsState()
 
     val scrollState = rememberScrollState()
@@ -120,7 +118,6 @@ fun HikeDetailScreen(
             LaunchedEffect(hikeLocation) {
                 if (hike.latitude != null && hike.longitude != null) {
                     cameraPositionState.position = CameraPosition.fromLatLngZoom(hikeLocation, 12f)
-                    // NEW: Fetch weather when screen loads
                     viewModel.fetchWeather(hike.latitude, hike.longitude, hike.hikeDate)
                 }
             }
@@ -135,9 +132,8 @@ fun HikeDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .verticalScroll(scrollState) // Always scrollable now
+                        .verticalScroll(scrollState)
                 ) {
-                    // --- MAP HEADER (Static) ---
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -177,7 +173,6 @@ fun HikeDetailScreen(
                         }
                     }
 
-                    // --- Stats Row ---
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -189,7 +184,6 @@ fun HikeDetailScreen(
                         StatItem(value = hike.elevation?.let { "${it.toInt()} ft" } ?: "N/A", label = "ELEVATION")
                     }
 
-                    // --- TABS ---
                     TabRow(
                         selectedTabIndex = selectedTab,
                         containerColor = Color.White,
@@ -206,14 +200,12 @@ fun HikeDetailScreen(
                         }
                     }
 
-                    // --- TAB CONTENT ---
                     when (selectedTab) {
                         0 -> ObservationList(
                             observations = observations,
                             onObservationClick = onObservationClick
                         )
                         1 -> {
-                            // NEW: Weather/Forecast Tab Content
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
                                     text = "Weather Conditions",
@@ -228,20 +220,18 @@ fun HikeDetailScreen(
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 )
 
-                                // Reusing your existing WeatherWidget
                                 WeatherWidget(state = weatherState)
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(80.dp)) // Bottom padding for FAB
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
     }
 }
 
-// ... [StatItem, ObservationList, ObservationItem implementations remain the same] ...
 @Composable
 fun StatItem(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

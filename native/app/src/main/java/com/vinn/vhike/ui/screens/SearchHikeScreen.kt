@@ -105,7 +105,6 @@ fun SearchHikeScreen(
         }
     ) { paddingValues ->
 
-        // FIX: Use ONE LazyColumn for EVERYTHING (Filters + Results)
         LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
@@ -113,7 +112,6 @@ fun SearchHikeScreen(
                 .background(Color.White),
             contentPadding = PaddingValues(16.dp)
         ) {
-            // --- SECTION 1: FILTERS (Added as individual items) ---
             item {
                 SearchTextField(
                     value = filterState.name ?: "",
@@ -232,7 +230,6 @@ fun SearchHikeScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // --- SECTION 2: RESULTS HEADER (Visible now!) ---
             item {
                 if (searchResults.isNotEmpty()) {
                     Text(
@@ -245,13 +242,11 @@ fun SearchHikeScreen(
                 }
             }
 
-            // --- SECTION 3: THE ACTUAL LIST OF HIKES ---
             items(searchResults) { hike ->
                 HikeResultItem(hike = hike, onClick = { onHikeClick(hike.id) })
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Bottom padding so FAB/Button doesn't hide last item
             item {
                 Spacer(modifier = Modifier.height(80.dp))
             }

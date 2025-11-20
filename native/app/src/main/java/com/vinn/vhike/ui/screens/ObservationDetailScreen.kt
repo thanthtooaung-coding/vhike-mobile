@@ -139,7 +139,6 @@ fun ObservationDetailScreen(
                     )
 
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        // Title
                         Text(
                             text = observation!!.observationText,
                             style = MaterialTheme.typography.headlineMedium,

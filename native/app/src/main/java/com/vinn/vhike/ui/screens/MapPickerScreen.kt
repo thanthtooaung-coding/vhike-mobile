@@ -53,7 +53,6 @@ fun MapPickerScreen(
 
     var addressText by remember { mutableStateOf("") }
 
-    // NEW: State for location permission
     var isLocationPermissionGranted by remember { mutableStateOf(false) }
 
     val cameraPositionState = rememberCameraPositionState {
@@ -62,7 +61,6 @@ fun MapPickerScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // NEW: Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -70,7 +68,6 @@ fun MapPickerScreen(
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
     }
 
-    // NEW: Check and Request Permissions on Start
     LaunchedEffect(Unit) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -86,7 +83,6 @@ fun MapPickerScreen(
         }
     }
 
-    // NEW: Configure Map Properties
     val mapProperties = remember(isLocationPermissionGranted) {
         MapProperties(isMyLocationEnabled = isLocationPermissionGranted)
     }
@@ -96,10 +92,8 @@ fun MapPickerScreen(
 
     LaunchedEffect(selectedLocation) {
         selectedLocation?.let { latLng ->
-            // Set default to coordinates while loading or if geocoding fails
             addressText = String.format("%.5f, %.5f", latLng.latitude, latLng.longitude)
 
-            // Perform geocoding in IO dispatcher
             this.launch(Dispatchers.IO) {
                 try {
                     val geocoder = Geocoder(context, Locale.getDefault())

@@ -83,7 +83,6 @@ fun HikeConfirmationScreen(
                 CenterAlignedTopAppBar(
                     title = { Text("Hike Confirmation") },
                     navigationIcon = {
-                        // UPDATED: Show dialog on "X" click
                         IconButton(onClick = { showCancelDialog = true }) {
                             Icon(Icons.Default.Close, contentDescription = "Close")
                         }

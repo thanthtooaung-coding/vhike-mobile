@@ -4,10 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.foundation.text.KeyboardOptions // Import
-import androidx.compose.material.icons.Icons // Import
-import androidx.compose.material.icons.filled.Visibility // Import
-import androidx.compose.material.icons.filled.VisibilityOff // Import
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,9 +18,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType // Import
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation // Import
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -41,7 +41,6 @@ fun SignupScreen(
     var password by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
 
-    // 1. Add Visibility States
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
@@ -90,7 +89,6 @@ fun SignupScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 3. Confirm Password Field with Toggle
         OutlinedTextField(
             value = confirmPass,
             onValueChange = { confirmPass = it },
@@ -151,10 +149,8 @@ fun SignupScreen(
                 text = policyText,
                 onClick = { offset ->
                     policyText.getStringAnnotations(tag = "policy", start = offset, end = offset).firstOrNull()?.let {
-                        // Navigate to Policy
                     }
                     policyText.getStringAnnotations(tag = "terms", start = offset, end = offset).firstOrNull()?.let {
-                        // Navigate to Terms
                     }
                     isPolicyAccepted = !isPolicyAccepted
                     policyError = false
@@ -185,7 +181,6 @@ fun SignupScreen(
                 if (!isPolicyAccepted) {
                     policyError = true
                 } else if (password != confirmPass) {
-                    // Handle error manually or via viewmodel
                 } else {
                     viewModel.signup(name, email, password)
                 }

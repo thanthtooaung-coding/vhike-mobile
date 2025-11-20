@@ -31,7 +31,6 @@ fun EditProfileScreen(
     val currentUser by viewModel.currentUser.collectAsState()
     val editState by viewModel.editProfileState.collectAsState()
 
-    // Local state for form fields
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var isInitialized by remember { mutableStateOf(false) }
@@ -39,7 +38,6 @@ fun EditProfileScreen(
     val otpState by viewModel.otpState.collectAsState()
     var otpInput by remember { mutableStateOf("") }
 
-    // Initialize fields with current user data once loaded
     LaunchedEffect(currentUser) {
         if (!isInitialized && currentUser != null) {
             fullName = currentUser!!.fullName
@@ -48,7 +46,6 @@ fun EditProfileScreen(
         }
     }
 
-    // Handle success state
     LaunchedEffect(editState) {
         if (editState is EditProfileState.Success) {
             onNavigateBack()
@@ -133,11 +130,9 @@ fun EditProfileScreen(
                     .padding(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppTeal),
                 shape = RoundedCornerShape(16.dp),
-                // Disable button while loading
                 enabled = editState !is EditProfileState.Loading
             ) {
                 if (editState is EditProfileState.Loading) {
-                    // Show loading spinner and text
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(
                             color = Color.White,
@@ -169,7 +164,6 @@ fun EditProfileScreen(
                     CircularProgressIndicator(color = AppTeal)
                 }
             } else {
-                // Error Message
                 if (editState is EditProfileState.Error) {
                     Text(
                         text = (editState as EditProfileState.Error).message,
@@ -178,7 +172,6 @@ fun EditProfileScreen(
                     )
                 }
 
-                // Full Name
                 Text(
                     text = "Full Name",
                     style = MaterialTheme.typography.bodySmall,
@@ -200,7 +193,6 @@ fun EditProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Email
                 Text(
                     text = "Email Address",
                     style = MaterialTheme.typography.bodySmall,

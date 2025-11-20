@@ -32,7 +32,6 @@ fun WeatherWidget(state: WeatherUiState) {
     ) {
         when (state) {
             is WeatherUiState.Idle -> {
-                // --- NEW IDLE STATE UI ---
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
